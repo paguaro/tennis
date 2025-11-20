@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <title>Campi da tennis – punti più vicini</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
+  <style>
+    html, body, #viewDiv {
+      height:100%;
+      width:100%;
+      margin:0;
+      padding:0;
+      -webkit-text-size-adjust:100%;
+    }
+    .esri-ui .esri-widget,
+    .esri-ui button,
+    .esri-ui input,
+    .esri-ui select {
+      font-size:12px;
+      line-height:1.2;
+    }
+
+    /* Barra icone (solo GPS) in alto a destra */
+    .iconbar {
+      position:absolute;
+      top:15px;
+      right:10px;
+      z-index:6;
+      display:flex;
+      gap:6px;
+      align-items:center;
+    }
+    .iconbtn {
+      background:transparent;
+      border:none;
+      cursor:pointer;
+      padding:6px;
+      min-width:32px;
+      font-size:20px;
+      line-height:1;
+      border-radius:8px;
+    }
+    .iconbtn:active { transform:scale(.96); }
+
+    /* Pannello info “campi vicini” */
+    #infoPanel {
+      position:absolute;
+      background:#fff;
+      padding:6px 8px;
+      border-radius:8px;
+      box-shadow:0 2px 10px rgba(0,0,0,.15);
+      font-size:9px;
+      z-index:5;
+      overflow-y:auto;
+      transition: all 0.3s ease;
+      top:100px;
+      right:10px;
+      width:min(260px,42vw);
+      max-height:50%;
+      opacity:0.9;
+    }
+    #infoPanel.collapsed {
+      max-height:24px;
+      opacity:0.4;
+      padding:4px;
+    }
+    #infoContent { font-size:12px; }
+
+    .toggle-chip {
+      position:absolute;
+      top:4px;
+      left:4px;
+      background:#f2f2f2;
+      border:1px solid #ddd;
+      cursor:pointer;
+      border-radius:6px;
+      padding:2px 6px;
+      font-size:14px;
+      line-height:1.1;
+      user-select:none;
+      z-index:10;
+    }
+
+    .info-table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:11px;
+    }
+    .info-table th,
+    .info-table td {
+      text-align:left;
+      padding:2px 4px;
+      border-bottom:1px dotted #eee;
+      vertical-align:top;
+      word-break:break-word;
+    }
+    .info-table th {
+      width:40%;
+      color:#444;
+      font-weight:600;
+    }
+
+    /* Toast & Error */
+    #toast, #error {
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      color:#fff;
+      padding:8px 12px;
+      border-radius:6px;
+      z-index:10;
+      display:none;
+      font-size:13px;
+      box-shadow:0 3px 10px rgba(0,0,0,.2);
+    }
+    #toast { top:10px; background:#323232; }
+    #error { top:50px; background:#d32f2f; }
+
+    /* Loader iniziale */
+    #loadingMessage {
+      position:absolute;
+      inset:0;
+      display:grid;
+      place-items:center;
+      pointer-events:none;
+      z-index:7;
+    }
+    #loadingBox {
+      background:#fff;
+      padding:12px 14px;
+      border-radius:10px;
+      box-shadow:0 4px 16px rgba(0,0,0,.2);
+      font-size:14px;
+    }
+    .hidden { display:none !important; }
+
+    /* Legenda personalizzata */
+    .custom-legend {
+      background:white;
+      padding:8px;
+      border-radius:6px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.15);
+      max-height:250px;
+      overflow-y:auto;
+      font-size:11px;
+    }
+    .custom-legend h4 {
+      margin:0 0 8px 0;
+      font-size:12px;
+    }
+    .legend-item {
+      display:flex;
+      align-items:center;
+      margin-bottom:6px;
+      padding:2px;
+    }
+    .legend-color {
+      width:14px;
+      height:14px;
+      margin-right:6px;
+      border-radius:50%;
+    }
+    .line-color {
+      width:14px;
+      height:3px;
+      margin-right:6px;
+      background-color:rgba(255,0,0,0.6);
+    }
+    .legend-label { flex:1; font-size:11px; }
+    .legend-checkbox {
+      margin-left:6px;
+      transform:scale(0.8);
+    }
+
+    /* Scala dinamica */
+    #scaleBar {
+      position:absolute;
+      bottom:20px;
+      left:50%;
+      transform:translateX(-50%);
+      background:rgba(255, 255, 255, 0.8);
+      padding:2px 5px;
+      border-radius:2px;
+      font-size:8px;
+      z-index:5;
+      box-shadow:0 1px 3px rgba(0,0,0,0.3);
+      color:#ff0000;
+      font-weight:bold;
+    }
+
+    /* Widget Selezione (semplice) */
+    .select-widget {
+      background:#fff;
+      padding:10px;
+      border-radius:8px;
+      box-shadow:0 2px 8px rgba(0,0,0,.15);
+      max-width:min(300px, 70vw);
+      font-size:11px;
+    }
+    .select-widget h4 {
+      margin:0 0 8px 0;
+      font-size:13px;
+    }
+    .sel-row {
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      margin-top:6px;
+    }
+    .sel-row button {
+      flex:1;
+      min-width:120px;
+    }
+    .sel-counter {
+      font-size:11px;
+      margin:6px 0;
+      color:#333;
+    }
+
+    button {
+      background-color:#0079c1;
+      color:#fff;
+      border:none;
+      cursor:pointer;
+      border-radius:6px;
+      padding:6px 8px;
+      font-size:12px;
+    }
+    button:hover { background-color:#005a8c; }
+    .btn-ghost {
+      background:#fff;
+      color:#000;
+      border:1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewDiv"></div>
+
+  <!-- Barra icone: solo GPS -->
+  <div class="iconbar">
+    <button id="btnGPS" class="iconbtn" title="Localizzami">📍</button>
+  </div>
+
+  <!-- Pannello info "campi vicini" -->
+  <div id="infoPanel">
+    <button id="toggleInfo" class="toggle-chip" title="Minimizza / Espandi">📋</button>
+    <div id="infoContent"></div>
+  </div>
+
+  <!-- Scala dinamica -->
+  <div id="scaleBar"></div>
+
+  <!-- Toast + Error + Loader -->
+  <div id="toast"></div>
+  <div id="error"></div>
+  <div id="loadingMessage"><div id="loadingBox">Caricamento campi da tennis…</div></div>
+
+  <script src="https://js.arcgis.com/4.33/"></script>
+  <script>
+  require([
+    "esri/Map","esri/views/MapView",
+    "esri/layers/GraphicsLayer","esri/Graphic",
+    "esri/geometry/Point","esri/geometry/Polyline","esri/geometry/Extent",
+    "esri/symbols/SimpleMarkerSymbol","esri/symbols/SimpleLineSymbol",
+    "esri/widgets/Search","esri/widgets/BasemapGallery","esri/widgets/Expand",
+    "esri/widgets/Zoom","esri/widgets/Home",
+    "esri/request","esri/core/reactiveUtils",
+    "esri/widgets/Sketch/SketchViewModel","esri/geometry/geometryEngine","esri/geometry/support/webMercatorUtils"
+  ], function(
+    Map, MapView,
+    GraphicsLayer, Graphic,
+    Point, Polyline, Extent,
+    SimpleMarkerSymbol, SimpleLineSymbol,
+    Search, BasemapGallery, Expand,
+    Zoom, Home,
+    esriRequest, reactiveUtils,
+    SketchViewModel, geometryEngine, webMercatorUtils
+  ){
+
+    /* ====== MAPPA & UI BASE ====== */
+    const map = new Map({ basemap: "streets-navigation-vector" });
+    const view = new MapView({
+      container: "viewDiv",
+      map,
+      center: [12, 42],     // centro indicativo sull'Italia
+      zoom: 5,
+      popupEnabled: true,
+      ui: { components: ["attribution"] }
+    });
+
+    let initialExtent = null;
+    view.when(() => { initialExtent = view.extent.clone(); });
+
+    /* ====== LAYERS ====== */
+    const tennisLayer        = new GraphicsLayer({ title:"Campi da tennis", listMode:"show" });
+    const linesLayer         = new GraphicsLayer({ title:"Linee di connessione", listMode:"show" });
+    const locLayer           = new GraphicsLayer({ title:"Mia posizione", listMode:"show" });
+    const selectionDrawLayer = new GraphicsLayer({ title:"Disegno selezione", listMode:"hide" });
+    const selectionLayer     = new GraphicsLayer({ title:"Selezione", listMode:"show" });
+
+    map.addMany([tennisLayer, linesLayer, locLayer, selectionDrawLayer, selectionLayer]);
+
+    /* ====== WIDGETS A SINISTRA ====== */
+    const zoomWidget = new Zoom({ view });
+    const homeWidget = new Home({ view });
+    view.ui.add(zoomWidget, { position:"top-left", index:0 });
+    view.ui.add(homeWidget, { position:"top-left", index:1 });
+
+    // Legenda
+    const legendContainer = document.createElement("div");
+    legendContainer.className = "custom-legend";
+    legendContainer.innerHTML = '<h4>Legenda</h4>';
+    const legendExpand = new Expand({
+      view,
+      content: legendContainer,
+      expanded:false,
+      expandIconClass:"esri-icon-layer-list",
+      expandTooltip:"Legenda"
+    });
+    view.ui.add(legendExpand, { position:"top-left", index:2 });
+
+    // Search
+    const searchWidget = new Search({ view });
+    const searchExpand = new Expand({
+      view,
+      content: searchWidget,
+      expanded:false,
+      expandIcon:"search",
+      expandTooltip:"Cerca luogo"
+    });
+    view.ui.add(searchExpand, { position:"top-left", index:3 });
+
+    // Basemap
+    const basemapGallery = new BasemapGallery({ view });
+    const bgExpand = new Expand({
+      view,
+      content: basemapGallery,
+      expandIconClass:"esri-icon-basemap",
+      expandTooltip:"Cambia mappa di base"
+    });
+    view.ui.add(bgExpand, "bottom-right");
+    basemapGallery.watch("activeBasemap", () => { bgExpand.expanded = false; });
+
+    /* ====== DOM UI ELEMENTI ====== */
+    const btnGPS      = document.getElementById("btnGPS");
+    const infoPanel   = document.getElementById("infoPanel");
+    const infoContent = document.getElementById("infoContent");
+    const toggleInfo  = document.getElementById("toggleInfo");
+    const toast       = document.getElementById("toast");
+    const errorBox    = document.getElementById("error");
+    const loadingMsg  = document.getElementById("loadingMessage");
+    const scaleBar    = document.getElementById("scaleBar");
+
+    toggleInfo.addEventListener("click", () => {
+      const collapsed = infoPanel.classList.contains("collapsed");
+      if (collapsed) {
+        infoPanel.classList.remove("collapsed");
+        toggleInfo.textContent = "📋";
+      } else {
+        infoPanel.classList.add("collapsed");
+        toggleInfo.textContent = "▶";
+      }
+    });
+
+    /* ====== STATO ====== */
+    const allPoints = [];      // tutti i campi da tennis (Graphics)
+    let spatialGrid = {};      // per nearest veloce
+    let nearest = [];          // lista dei più vicini all'ultimo punto
+
+    /* ====== SIMBOLI ====== */
+    const symTennis = new SimpleMarkerSymbol({
+      color:[0,112,255,0.9],
+      outline:{ color:[80,220,255], width:1 },
+      size:4
+    });
+    const symLocation = new SimpleMarkerSymbol({
+      color:[0,200,0,0.9],
+      outline:{ color:[255,255,255], width:2 },
+      size:10
+    });
+    const symLine = new SimpleLineSymbol({
+      color:[255,0,0,0.7],
+      width:1.5,
+      style:"short-dash"
+    });
+    const symSelectedPoint = new SimpleMarkerSymbol({
+      style:"circle",
+      color:[0,0,0,0],
+      outline:{ color:[255,215,0,0.95], width:2 },
+      size:8
+    });
+    const symSelectedLine = new SimpleLineSymbol({
+      color:[255,215,0,0.95],
+      width:3
+    });
+
+    /* ====== UTIL UI ====== */
+    function showToast(msg, ms=2000) {
+      toast.textContent = msg;
+      toast.style.display = "block";
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.style.display = "none", ms);
+    }
+    function showError(msg, ms=5000) {
+      errorBox.textContent = msg;
+      errorBox.style.display = "block";
+      clearTimeout(showError._t);
+      showError._t = setTimeout(() => errorBox.style.display = "none", ms);
+    }
+
+    // Legenda aggiornata in base ai layer
+    function updateLegend() {
+      while (legendContainer.children.length > 1) {
+        legendContainer.removeChild(legendContainer.lastChild);
+      }
+      map.layers.forEach(layer => {
+        if (layer.title && layer.listMode === "show") {
+          const item = document.createElement("div");
+          item.className = "legend-item";
+
+          const colorBox = document.createElement("div");
+          if (layer.title === "Campi da tennis") {
+            colorBox.className = "legend-color";
+            colorBox.style.backgroundColor = "rgba(0,112,255,0.85)";
+          } else if (layer.title === "Linee di connessione") {
+            colorBox.className = "line-color";
+          } else if (layer.title === "Mia posizione") {
+            colorBox.className = "legend-color";
+            colorBox.style.backgroundColor = "rgba(0,200,0,0.9)";
+          } else if (layer.title === "Selezione") {
+            colorBox.className = "legend-color";
+            colorBox.style.backgroundColor = "rgba(255,215,0,0.95)";
+          }
+
+          const label = document.createElement("span");
+          label.className = "legend-label";
+          label.textContent = layer.title;
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = "legend-checkbox";
+          checkbox.checked = layer.visible;
+          checkbox.addEventListener("change", () => {
+            layer.visible = checkbox.checked;
+          });
+
+          item.appendChild(colorBox);
+          item.appendChild(label);
+          item.appendChild(checkbox);
+          legendContainer.appendChild(item);
+        }
+      });
+    }
+    map.layers.on("change", updateLegend);
+
+    // Barra scala dinamica
+    function updateScaleBar() {
+      const scale = view.scale;
+      let distance, unit;
+      if (scale > 1000000) {
+        distance = Math.round(scale / 100000) * 100;
+        unit = "km";
+        distance = distance / 100;
+      } else if (scale > 1000) {
+        distance = Math.round(scale / 100) * 100;
+        unit = "m";
+      } else {
+        distance = Math.round(scale);
+        unit = "m";
+      }
+      scaleBar.textContent = unit === "m"
+        ? `${distance.toLocaleString('it-IT')} m`
+        : `${distance} ${unit}`;
+    }
+    view.watch("scale", updateScaleBar);
+    view.watch("center", updateScaleBar);
+
+    /* ====== CARICAMENTO GEOJSON CAMPI DA TENNIS ====== */
+
+    // Sostituisci con il nome reale del tuo file GeoJSON
+    // ad esempio: "campi_tennis_italia.geojson"
+    const tennisGeoJsonUrl = "tennis_it.geojson";
+
+    esriRequest(tennisGeoJsonUrl, { responseType:"json" })
+      .then((r) => {
+        const gj = r.data;
+        if (!gj || !gj.features) throw new Error("GeoJSON vuoto o non valido.");
+        ingestTennis(gj.features);
+        updateLegend();
+        updateScaleBar();
+      })
+      .catch((e) => {
+        console.error(e);
+        showError("Errore nel caricamento dei campi da tennis.");
+      })
+      .finally(() => {
+        loadingMsg.classList.add("hidden");
+      });
+
+    function createTennisPopupTemplate(attrs) {
+      return {
+        title: attrs.name || "Campo da tennis",
+        content: function(event) {
+          const graphic = event.graphic;
+          const a = graphic.attributes || {};
+          const g = graphic.geometry;
+          const lat = Number(g.latitude ?? g.y).toFixed(6);
+          const lon = Number(g.longitude ?? g.x).toFixed(6);
+          return buildTable(a) +
+            "<div style='margin-top:8px;'><strong>Coordinate:</strong> " +
+            lat + ", " + lon + "</div>";
+        },
+        actions: [
+          {
+            title:"Waze",
+            id:"open-waze",
+            image:"https://paguaro.github.io/Points_icnf/waze-icon.png"
+          },
+          {
+            title:"Google Maps",
+            id:"open-google-maps",
+            image:"https://paguaro.github.io/Points_icnf/google-maps-icon.png"
+          },
+          {
+            title:"Copia coordinate",
+            id:"copy-coords",
+            image:"https://paguaro.github.io/Points_icnf/coordinates-icon.png"
+          },
+          {
+            title:"Copia GeoJSON",
+            id:"copy-geojson",
+            image:"https://paguaro.github.io/Points_icnf/geojson-icon.png"
+          }
+        ]
+      };
+    }
+
+    function ingestTennis(features) {
+      for (const f of features) {
+        const c = f.geometry && f.geometry.coordinates;
+        if (!c || c.length < 2) continue;
+        const pt = new Point({
+          longitude: +c[0],
+          latitude: +c[1]
+        });
+        const attrs = f.properties || {};
+        const g = new Graphic({
+          geometry: pt,
+          attributes: attrs,
+          symbol: symTennis,
+          popupTemplate: createTennisPopupTemplate(attrs)
+        });
+        allPoints.push(g);
+        tennisLayer.add(g);
+      }
+
+      if (tennisLayer.graphics.items.length) {
+        fitToGraphics(tennisLayer.graphics.items, 60);
+      }
+      if (allPoints.length) {
+        buildSpatialGrid(allPoints);
+        if (view.center) findNearest(view.center);
+      }
+    }
+
+    function buildTable(attrs) {
+      const rows = Object.entries(attrs || {})
+        .filter(([k, v]) => v != null && v !== "")
+        .sort((a, b) => a[0].localeCompare(b[0]));
+      let html = "<table class='info-table'><tbody>";
+      for (const [k, v] of rows) {
+        const label = k.replace(/_/g," ").replace(/\b\w/g,l=>l.toUpperCase());
+        html += "<tr><th>" + label + "</th><td>" + v + "</td></tr>";
+      }
+      html += "</tbody></table>";
+      return html;
+    }
+
+    // Azioni popup (Waze / Google / copia)
+    reactiveUtils.on(() => view.popup, "trigger-action", (event) => {
+      const graphic = view.popup.selectedFeature;
+      if (!graphic) return;
+      const geom = graphic.geometry;
+      const lat = (geom.latitude ?? geom.y)?.toFixed(6);
+      const lon = (geom.longitude ?? geom.x)?.toFixed(6);
+      const attrs = graphic.attributes;
+
+      switch (event.action.id) {
+        case "open-waze":
+          openNavigation("waze", lat, lon);
+          break;
+        case "open-google-maps":
+          openNavigation("google", lat, lon);
+          break;
+        case "copy-coords":
+          copyToClipboard(`${lat}, ${lon}`);
+          showToast("Coordinate copiate!");
+          break;
+        case "copy-geojson":
+          copyGeoJSON(attrs, lat, lon);
+          break;
+      }
+    });
+
+    function openNavigation(app, lat, lon) {
+      const url = app === "waze"
+        ? `https://waze.com/ul?ll=${lat},${lon}&navigate=yes`
+        : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+      window.open(url, "_blank");
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).catch(err => {
+        console.error("Errore nella copia:", err);
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      });
+    }
+
+    function copyGeoJSON(attributes, lat, lon) {
+      const feature = {
+        type:"Feature",
+        geometry:{
+          type:"Point",
+          coordinates:[ parseFloat(lon), parseFloat(lat) ]
+        },
+        properties:{ ...attributes }
+      };
+      copyToClipboard(JSON.stringify(feature, null, 2));
+      showToast("GeoJSON copiato negli appunti!");
+    }
+
+    /* ====== FIT TO GRAPHICS ====== */
+    function fitToGraphics(graphics, padding=40) {
+      if (!graphics || !graphics.length) return;
+      let xmin=Infinity, ymin=Infinity, xmax=-Infinity, ymax=-Infinity;
+      for (const g of graphics) {
+        const geom = g.geometry;
+        if (!geom) continue;
+        const x = geom.longitude ?? geom.x;
+        const y = geom.latitude ?? geom.y;
+        if (typeof x !== "number" || typeof y !== "number") continue;
+        if (x < xmin) xmin = x;
+        if (y < ymin) ymin = y;
+        if (x > xmax) xmax = x;
+        if (y > ymax) ymax = y;
+      }
+      if (!isFinite(xmin) || !isFinite(ymin) || !isFinite(xmax) || !isFinite(ymax)) return;
+      const ext = new Extent({
+        xmin, ymin, xmax, ymax,
+        spatialReference:{ wkid:4326 }
+      });
+      view.goTo({ target: ext, padding }).catch(()=>{});
+    }
+
+    /* ====== NEAREST (CAMPI DA TENNIS) ====== */
+    function buildSpatialGrid(points, gridSize=0.5) {
+      spatialGrid = {};
+      for (const p of points) {
+        const lon = p.geometry.longitude;
+        const lat = p.geometry.latitude;
+        const gx = Math.floor(lon / gridSize);
+        const gy = Math.floor(lat / gridSize);
+        const key = `${gx},${gy}`;
+        if (!spatialGrid[key]) spatialGrid[key] = [];
+        spatialGrid[key].push(p);
+      }
+    }
+
+    function haversineMeters(a,b) {
+      const R = 6371000;
+      const toRad = d => d*Math.PI/180;
+      const dLat = toRad(b.latitude - a.latitude);
+      const dLon = toRad(b.longitude - a.longitude);
+      const lat1 = toRad(a.latitude);
+      const lat2 = toRad(b.latitude);
+      const s = Math.sin(dLat/2)**2 +
+                Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+      return Math.round(2*R*Math.asin(Math.sqrt(s)));
+    }
+
+    function findNearest(pt) {
+      if (!allPoints.length || !pt) return;
+      linesLayer.removeAll();
+
+      if (!Object.keys(spatialGrid).length) {
+        buildSpatialGrid(allPoints);
+      }
+
+      const active = allPoints;
+      const gridSize = 0.5;
+      const gx = Math.floor(pt.longitude / gridSize);
+      const gy = Math.floor(pt.latitude / gridSize);
+      let candidates = [];
+
+      for (let x = gx-2; x <= gx+2; x++) {
+        for (let y = gy-2; y <= gy+2; y++) {
+          const key = `${x},${y}`;
+          const cell = spatialGrid[key];
+          if (!cell) continue;
+          for (const g of cell) {
+            if (active.includes(g)) {
+              candidates.push({
+                feature: g,
+                distance: haversineMeters(pt, g.geometry)
+              });
+            }
+          }
+        }
+      }
+
+      // fallback se pochi candidati
+      if (candidates.length < 4) {
+        candidates = active.map(g => ({
+          feature: g,
+          distance: haversineMeters(pt, g.geometry)
+        }));
+      }
+
+      // max 10 km, top 4
+      nearest = candidates
+        .filter(o => o.distance <= 10000)
+        .sort((a,b) => a.distance - b.distance)
+        .slice(0, 8);
+
+      for (const item of nearest) {
+        const line = new Polyline({
+          paths: [
+            [pt.longitude, pt.latitude],
+            [item.feature.geometry.longitude, item.feature.geometry.latitude]
+          ],
+          spatialReference:{ wkid:4326 }
+        });
+        linesLayer.add(new Graphic({ geometry: line, symbol: symLine }));
+      }
+
+      renderInfo();
+    }
+
+    function renderInfo() {
+      let html = "<h4 style='margin:4px 0 6px'>   Campi da tennis più vicini <small>(dentro 10 km)</small>:</h4>";
+      if (!nearest.length) {
+        html += "<p style='margin:0'>Nessun campo trovato nella distanza impostata.</p>";
+      } else {
+        html += "<ul style='margin:0; padding-left:16px; font-size:12px;'>";
+        for (const o of nearest) {
+          const a = o.feature.attributes || {};
+          const name =
+            a.name ||
+            `Campo #${a.OBJECTID ?? "sconosciuto"}`;
+          const leisure = a.leisure ? ` (${a.leisure})` : "";
+          const sport = a.sport ? ` – ${a.sport}` : "";
+          html += "<li>" + name + leisure + sport +
+                  " — " + o.distance.toLocaleString('it-IT') + " m</li>";
+        }
+        html += "</ul>";
+      }
+      infoContent.innerHTML = html;
+    }
+
+    // aggiorna in base al movimento mappa / cursore
+    view.on("drag", () => {
+      if (view.center) findNearest(view.center.clone());
+    });
+    view.when(() => {
+      if (view.center) findNearest(view.center);
+    });
+
+    let moveTimeout;
+    view.on("pointer-move", (e) => {
+      clearTimeout(moveTimeout);
+      moveTimeout = setTimeout(() => {
+        const pt = view.toMap({ x:e.x, y:e.y });
+        if (pt) findNearest(pt);
+      }, 100);
+    });
+
+    /* ====== GPS ====== */
+    btnGPS.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        showError("Geolocalizzazione non supportata.");
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        p => {
+          const pt = new Point({
+            longitude: p.coords.longitude,
+            latitude: p.coords.latitude
+          });
+          view.goTo({ target: pt, zoom: 14 }).catch(()=>{});
+          locLayer.removeAll();
+          locLayer.add(new Graphic({ geometry: pt, symbol: symLocation }));
+          showToast("Posizione impostata");
+          findNearest(pt);
+        },
+        () => showError("Impossibile ottenere la posizione."),
+        { enableHighAccuracy:true, maximumAge:30000, timeout:10000 }
+      );
+    });
+
+    /* ====== WIDGET SELEZIONE (rettangolo → GeoJSON) ====== */
+
+    const selContainer = document.createElement("div");
+    selContainer.className = "select-widget";
+    selContainer.innerHTML = `
+      <h4>Selezione</h4>
+      <div class="sel-row">
+        <button id="btnSelectRect">Rettangolo</button>
+        <button id="btnClearSel" class="btn-ghost">Pulisci</button>
+      </div>
+      <div class="sel-row" style="margin-top:4px;">
+        <button id="btnCopySel" class="btn-ghost">Copia GeoJSON</button>
+        <button id="btnDownloadSel">Scarica .geojson</button>
+      </div>
+      <div class="sel-counter">Selezionati: <strong id="selCount">0</strong></div>
+    `;
+
+    const selectExpand = new Expand({
+      view,
+      content: selContainer,
+      expanded:false,
+      expandIconClass:"esri-icon-cursor",
+      expandTooltip:"Selezione"
+    });
+    view.ui.add(selectExpand, { position:"top-left", index:4 });
+
+    const sketchVM = new SketchViewModel({
+      view,
+      layer: selectionDrawLayer,
+      polygonSymbol: {
+        type:"simple-fill",
+        color:[0,0,0,0.06],
+        outline:{ color:[0,0,0,0.5], width:1 }
+      }
+    });
+
+    const selCountEl    = selContainer.querySelector("#selCount");
+    const btnSelectRect = selContainer.querySelector("#btnSelectRect");
+    const btnClearSel   = selContainer.querySelector("#btnClearSel");
+    const btnCopySel    = selContainer.querySelector("#btnCopySel");
+    const btnDownloadSel= selContainer.querySelector("#btnDownloadSel");
+
+    let selectedItems = []; // { geometry, attributes, layerTitle }
+
+    const toWGS84 = (geom) => {
+      if (!geom) return geom;
+      const sr = geom.spatialReference;
+      if (sr && (sr.wkid === 4326 || sr.isWGS84)) return geom;
+      return webMercatorUtils.webMercatorToGeographic(geom);
+    };
+
+    btnSelectRect.addEventListener("click", () => {
+      selectionDrawLayer.removeAll();
+      selectionLayer.removeAll();
+      selectedItems = [];
+      updateSelCounter();
+      sketchVM.create("rectangle");
+    });
+    btnClearSel.addEventListener("click", () => {
+      selectionDrawLayer.removeAll();
+      selectionLayer.removeAll();
+      selectedItems = [];
+      updateSelCounter();
+    });
+
+    sketchVM.on("create", (evt) => {
+      if (evt.state === "complete" && evt.graphic?.geometry) {
+        const rectWgs = toWGS84(evt.graphic.geometry);
+        runSelection(rectWgs);
+      }
+    });
+
+    function updateSelCounter() {
+      selCountEl.textContent = selectedItems.length.toString();
+    }
+
+    function visibleGraphicsLayers() {
+      const ignore = new Set([linesLayer, locLayer, selectionDrawLayer, selectionLayer]);
+      const arr = [];
+      map.layers.forEach(layer => {
+        if (layer.visible && layer instanceof GraphicsLayer && !ignore.has(layer)) {
+          arr.push(layer);
+        }
+      });
+      return arr;
+    }
+
+    function quickPointInExtent(pt, ext) {
+      return (
+        pt.longitude >= ext.xmin &&
+        pt.longitude <= ext.xmax &&
+        pt.latitude  >= ext.ymin &&
+        pt.latitude  <= ext.ymax
+      );
+    }
+
+    function runSelection(rectWgs) {
+      selectionLayer.removeAll();
+      selectedItems = [];
+      const layers = visibleGraphicsLayers();
+      const ext = rectWgs.extent;
+
+      for (const layer of layers) {
+        layer.graphics.items.forEach(g => {
+          if (!g.geometry) return;
+          const gWgs = (g.geometry.spatialReference?.wkid === 4326)
+            ? g.geometry
+            : toWGS84(g.geometry);
+          const type = gWgs.type;
+
+          if (type === "point") {
+            if (!quickPointInExtent(gWgs, ext)) return;
+          } else {
+            const gExt = gWgs.extent;
+            if (gExt && !geometryEngine.intersects(ext, gExt)) return;
+          }
+
+          const hit = geometryEngine.contains(rectWgs, gWgs);
+          if (hit) {
+            selectedItems.push({
+              geometry: gWgs.clone(),
+              attributes:{ ...g.attributes },
+              layerTitle: layer.title || "layer"
+            });
+            if (type === "point") {
+              selectionLayer.add(new Graphic({ geometry:gWgs, symbol:symSelectedPoint }));
+            } else {
+              selectionLayer.add(new Graphic({ geometry:gWgs, symbol:symSelectedLine }));
+            }
+          }
+        });
+      }
+
+      updateSelCounter();
+      showToast(`Selezionate ${selectedItems.length} feature`);
+      if (selectedItems.length) {
+        const geoms = selectedItems.map(it => it.geometry);
+        const unionExt = geoms.reduce((acc, g) => acc ? acc.union(g.extent) : g.extent, null);
+        if (unionExt) {
+          view.goTo({ target: unionExt.expand(1.2) }).catch(()=>{});
+        }
+      }
+    }
+
+    function selectionToGeoJSON() {
+      const fc = { type:"FeatureCollection", features:[] };
+      for (const it of selectedItems) {
+        const g = it.geometry;
+        let geom = null;
+        if (g.type === "point") {
+          geom = {
+            type:"Point",
+            coordinates:[ g.longitude ?? g.x, g.latitude ?? g.y ]
+          };
+        } else if (g.type === "polyline") {
+          if (g.paths?.length > 1) {
+            geom = {
+              type:"MultiLineString",
+              coordinates: g.paths.map(path => path.map(([x,y]) => [x,y]))
+            };
+          } else {
+            geom = {
+              type:"LineString",
+              coordinates:(g.paths?.[0] || []).map(([x,y]) => [x,y])
+            };
+          }
+        } else if (g.type === "polygon") {
+          if (g.rings) {
+            geom = {
+              type:"Polygon",
+              coordinates:g.rings.map(r => r.map(([x,y]) => [x,y]))
+            };
+          }
+        }
+        if (!geom) continue;
+        const props = { ...it.attributes, _layer: it.layerTitle };
+        fc.features.push({ type:"Feature", geometry:geom, properties:props });
+      }
+      return fc;
+    }
+
+    btnCopySel.addEventListener("click", () => {
+      if (!selectedItems.length) {
+        showToast("Nessuna feature selezionata");
+        return;
+      }
+      const fc = selectionToGeoJSON();
+      copyToClipboard(JSON.stringify(fc, null, 2));
+      showToast("GeoJSON copiato negli appunti");
+    });
+
+    btnDownloadSel.addEventListener("click", () => {
+      if (!selectedItems.length) {
+        showToast("Nessuna feature selezionata");
+        return;
+      }
+      const fc = selectionToGeoJSON();
+      const blob = new Blob([JSON.stringify(fc, null, 2)], { type:"application/geo+json" });
+      const url = URL.createObjectURL(blob);
+      const ts = new Date();
+      const pad = n => String(n).padStart(2,"0");
+      const fname = `selezione_${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.geojson`;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    });
+
+  });
+  </script>
+</body>
+</html>
