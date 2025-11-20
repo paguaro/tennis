@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <title>Campi da tennis – punti più vicini</title>
+  <title>Campi da tennis – punti più vicini (mobile)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
   <style>
@@ -479,8 +479,6 @@
 
     /* ====== CARICAMENTO GEOJSON CAMPI DA TENNIS ====== */
 
-    // Sostituisci con il nome reale del tuo file GeoJSON
-    // ad esempio: "campi_tennis_italia.geojson"
     const tennisGeoJsonUrl = "tennis_it.geojson";
 
     esriRequest(tennisGeoJsonUrl, { responseType:"json" })
@@ -716,18 +714,18 @@
       }
 
       // fallback se pochi candidati
-      if (candidates.length < 4) {
+      if (candidates.length < 5) {
         candidates = active.map(g => ({
           feature: g,
           distance: haversineMeters(pt, g.geometry)
         }));
       }
 
-      // max 10 km, top 4
+      // max 5 km, top 5
       nearest = candidates
-        .filter(o => o.distance <= 10000)
+        .filter(o => o.distance <= 5000)
         .sort((a,b) => a.distance - b.distance)
-        .slice(0, 8);
+        .slice(0, 5);
 
       for (const item of nearest) {
         const line = new Polyline({
@@ -744,7 +742,7 @@
     }
 
     function renderInfo() {
-      let html = "<h4 style='margin:4px 0 6px'>   Campi da tennis più vicini <small>(dentro 10 km)</small>:</h4>";
+      let html = "<h4 style='margin:4px 0 6px'>   Campi da tennis più vicini <small>(entro 5 km)</small>:</h4>";
       if (!nearest.length) {
         html += "<p style='margin:0'>Nessun campo trovato nella distanza impostata.</p>";
       } else {
@@ -764,22 +762,20 @@
       infoContent.innerHTML = html;
     }
 
-    // aggiorna in base al movimento mappa / cursore
-    view.on("drag", () => {
-      if (view.center) findNearest(view.center.clone());
-    });
+    // iniziale: un calcolo
     view.when(() => {
       if (view.center) findNearest(view.center);
     });
 
-    let moveTimeout;
-    view.on("pointer-move", (e) => {
-      clearTimeout(moveTimeout);
-      moveTimeout = setTimeout(() => {
-        const pt = view.toMap({ x:e.x, y:e.y });
-        if (pt) findNearest(pt);
-      }, 100);
-    });
+    // versione mobile: ricalcola solo quando la view è ferma
+    reactiveUtils.watch(
+      () => view.stationary,
+      (stationary) => {
+        if (stationary && view.center) {
+          findNearest(view.center.clone());
+        }
+      }
+    );
 
     /* ====== GPS ====== */
     btnGPS.addEventListener("click", () => {
