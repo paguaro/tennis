@@ -290,9 +290,6 @@
       ui: { components: ["attribution"] }
     });
 
-    let initialExtent = null;
-    view.when(() => { initialExtent = view.extent.clone(); });
-
     /* ====== LAYERS ====== */
     const tennisLayer        = new GraphicsLayer({ title:"Campi da tennis/padel", listMode:"show" });
     const linesLayer         = new GraphicsLayer({ title:"Linee di connessione", listMode:"show" });
@@ -396,7 +393,7 @@
       width:3
     });
 
-    /* ====== SIMBOLO CAMPi (statico, tennis vs padel) ====== */
+    /* ====== SIMBOLO CAMPI (statico, tennis vs padel, 4px) ====== */
     function createCourtSymbol(attrs) {
       const sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
       const isPadel = sportValue === "padel";
@@ -409,7 +406,7 @@
                          : [80, 220, 255, 1],
           width: 1
         },
-        size: 5                                  // dimensione fissa per stabilità
+        size: 4                                  // dimensione fissa ridotta
       });
     }
 
@@ -426,10 +423,7 @@
       tennisLayer.graphics.items.forEach(g => {
         g.visible = isCourtVisibleByFilter(g);
       });
-      // ricalcola i più vicini sulla base dei soli punti visibili
-      if (view.center) {
-        findNearest(view.center.clone());
-      }
+      // NIENTE findNearest qui per alleggerire
     }
 
     /* ====== UTIL UI ====== */
@@ -546,7 +540,7 @@
     }
     map.layers.on("change", updateLegend);
 
-    // Barra scala dinamica (solo testo, niente resize simboli)
+    // Barra scala dinamica (solo testo, nessun resize simboli)
     function updateScaleBar() {
       const scale = view.scale;
       let distance, unit;
@@ -566,9 +560,7 @@
         : `${distance} ${unit}`;
     }
 
-    view.watch("scale", () => {
-      updateScaleBar();
-    });
+    view.watch("scale", updateScaleBar);
     view.watch("center", updateScaleBar);
 
     /* ====== CARICAMENTO GEOJSON CAMPI (tennis + padel) ====== */
@@ -873,8 +865,9 @@
       infoContent.innerHTML = html;
     }
 
-    // iniziale: un calcolo
+    // iniziale: un calcolo quando la view è pronta
     view.when(() => {
+      updateScaleBar();
       if (view.center) findNearest(view.center);
     });
 
