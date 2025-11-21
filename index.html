@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <title>Campi da tennis – punti più vicini (mobile)</title>
+  <title>Campi da tennis/padel più vicini (mobile)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
   <style>
@@ -294,7 +294,7 @@
     view.when(() => { initialExtent = view.extent.clone(); });
 
     /* ====== LAYERS ====== */
-    const tennisLayer        = new GraphicsLayer({ title:"Campi da tennis", listMode:"show" });
+    const tennisLayer        = new GraphicsLayer({ title:"Campi da tennis/padel", listMode:"show" });
     const linesLayer         = new GraphicsLayer({ title:"Linee di connessione", listMode:"show" });
     const locLayer           = new GraphicsLayer({ title:"Mia posizione", listMode:"show" });
     const selectionDrawLayer = new GraphicsLayer({ title:"Disegno selezione", listMode:"hide" });
@@ -365,16 +365,16 @@
     });
 
     /* ====== STATO ====== */
-    const allPoints = [];      // tutti i campi da tennis (Graphics)
+    const allPoints = [];      // tutti i campi (tennis + padel)
     let spatialGrid = {};      // per nearest veloce
     let nearest = [];          // lista dei più vicini all'ultimo punto
 
-    /* ====== SIMBOLI ====== */
-    const symTennis = new SimpleMarkerSymbol({
-      color:[0,112,255,0.9],
-      outline:{ color:[80,220,255], width:1 },
-      size:4
-    });
+    // visibilità per sport
+    let showTennis = true;
+    let showPadel  = true;
+
+    /* ====== SIMBOLI BASE ====== */
+    // Usato solo per posizione utente, linee, selezione ecc.
     const symLocation = new SimpleMarkerSymbol({
       color:[0,200,0,0.9],
       outline:{ color:[255,255,255], width:2 },
@@ -396,6 +396,77 @@
       width:3
     });
 
+    /* ====== FUNZIONI SIMBOLO DINAMICO (Tennis/Padel + scala) ====== */
+    function getSymbolSize(scale) {
+      // dimensione dinamica tra 4px (scala lontana) e 7px (scala vicina)
+      const minSize  = 4;
+      const maxSize  = 7;
+      const minScale = 2_000_000; // scala più piccola (lontano)
+      const maxScale = 5_000;     // scala grande (molto vicino)
+
+      const clamped = Math.max(Math.min(scale, minScale), maxScale);
+      const t = (minScale - clamped) / (minScale - maxScale); // 0..1
+      return minSize + t * (maxSize - minSize);
+    }
+
+    function createCourtSymbol(attrs) {
+      const sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
+      const isPadel = sportValue === "padel";
+
+      const size = getSymbolSize(view.scale || 1e6);
+
+      return new SimpleMarkerSymbol({
+        color: isPadel ? [255, 0, 0, 0.9]        // padel = rosso
+                       : [0, 112, 255, 0.9],     // tennis = blu
+        outline: {
+          color: isPadel ? [255, 200, 200, 1]   // contorno chiaro padel
+                         : [80, 220, 255, 1],
+          width: 1
+        },
+        size: size
+      });
+    }
+
+    // sport visibile in base ai toggle
+    function isCourtVisibleByFilter(graphic) {
+      const attrs = graphic.attributes || {};
+      const sportValue = (attrs.sport ? String(attrs.sport) : "").toLowerCase();
+      if (sportValue === "padel")  return showPadel;
+      if (sportValue === "tennis") return showTennis;
+      return true; // fallback per altri
+    }
+
+    function updateCourtVisibility() {
+      tennisLayer.graphics.items.forEach(g => {
+        g.visible = isCourtVisibleByFilter(g);
+      });
+      // ricalcola i più vicini sulla base dei soli punti visibili
+      if (view.center) {
+        findNearest(view.center.clone());
+      }
+    }
+
+    function updateSymbolSizes() {
+      const scale = view.scale || 1e6;
+      const newSize = getSymbolSize(scale);
+      tennisLayer.graphics.items.forEach(g => {
+        const attrs = g.attributes || {};
+        const sportValue = (attrs.sport ? String(attrs.sport) : "").toLowerCase();
+        const isPadel = sportValue === "padel";
+
+        const sym = g.symbol.clone();
+        sym.size = newSize;
+        if (isPadel) {
+          sym.color = [255, 0, 0, 0.9];
+          sym.outline = { color:[255,200,200,1], width:1 };
+        } else {
+          sym.color = [0, 112, 255, 0.9];
+          sym.outline = { color:[80,220,255,1], width:1 };
+        }
+        g.symbol = sym;
+      });
+    }
+
     /* ====== UTIL UI ====== */
     function showToast(msg, ms=2000) {
       toast.textContent = msg;
@@ -410,21 +481,73 @@
       showError._t = setTimeout(() => errorBox.style.display = "none", ms);
     }
 
-    // Legenda aggiornata in base ai layer
+    // Legenda aggiornata (tennis vs padel con toggle separati)
     function updateLegend() {
       while (legendContainer.children.length > 1) {
         legendContainer.removeChild(legendContainer.lastChild);
       }
       map.layers.forEach(layer => {
-        if (layer.title && layer.listMode === "show") {
+        if (!layer.title || layer.listMode !== "show") return;
+
+        if (layer === tennisLayer) {
+          // Riga tennis (checkbox dedicato)
+          const itemT = document.createElement("div");
+          itemT.className = "legend-item";
+
+          const colorT = document.createElement("div");
+          colorT.className = "legend-color";
+          colorT.style.backgroundColor = "rgba(0,112,255,0.85)";
+
+          const labelT = document.createElement("span");
+          labelT.className = "legend-label";
+          labelT.textContent = "Campi da tennis";
+
+          const checkboxT = document.createElement("input");
+          checkboxT.type = "checkbox";
+          checkboxT.className = "legend-checkbox";
+          checkboxT.checked = showTennis;
+          checkboxT.addEventListener("change", () => {
+            showTennis = checkboxT.checked;
+            updateCourtVisibility();
+          });
+
+          itemT.appendChild(colorT);
+          itemT.appendChild(labelT);
+          itemT.appendChild(checkboxT);
+          legendContainer.appendChild(itemT);
+
+          // Riga padel (checkbox dedicato)
+          const itemP = document.createElement("div");
+          itemP.className = "legend-item";
+
+          const colorP = document.createElement("div");
+          colorP.className = "legend-color";
+          colorP.style.backgroundColor = "rgba(255,0,0,0.9)";
+
+          const labelP = document.createElement("span");
+          labelP.className = "legend-label";
+          labelP.textContent = "Campi da padel";
+
+          const checkboxP = document.createElement("input");
+          checkboxP.type = "checkbox";
+          checkboxP.className = "legend-checkbox";
+          checkboxP.checked = showPadel;
+          checkboxP.addEventListener("change", () => {
+            showPadel = checkboxP.checked;
+            updateCourtVisibility();
+          });
+
+          itemP.appendChild(colorP);
+          itemP.appendChild(labelP);
+          itemP.appendChild(checkboxP);
+          legendContainer.appendChild(itemP);
+
+        } else {
           const item = document.createElement("div");
           item.className = "legend-item";
 
           const colorBox = document.createElement("div");
-          if (layer.title === "Campi da tennis") {
-            colorBox.className = "legend-color";
-            colorBox.style.backgroundColor = "rgba(0,112,255,0.85)";
-          } else if (layer.title === "Linee di connessione") {
+          if (layer.title === "Linee di connessione") {
             colorBox.className = "line-color";
           } else if (layer.title === "Mia posizione") {
             colorBox.className = "legend-color";
@@ -432,6 +555,9 @@
           } else if (layer.title === "Selezione") {
             colorBox.className = "legend-color";
             colorBox.style.backgroundColor = "rgba(255,215,0,0.95)";
+          } else {
+            colorBox.className = "legend-color";
+            colorBox.style.backgroundColor = "rgba(150,150,150,0.8)";
           }
 
           const label = document.createElement("span");
@@ -474,10 +600,14 @@
         ? `${distance.toLocaleString('it-IT')} m`
         : `${distance} ${unit}`;
     }
-    view.watch("scale", updateScaleBar);
+
+    view.watch("scale", () => {
+      updateScaleBar();
+      updateSymbolSizes();
+    });
     view.watch("center", updateScaleBar);
 
-    /* ====== CARICAMENTO GEOJSON CAMPI DA TENNIS ====== */
+    /* ====== CARICAMENTO GEOJSON CAMPI (tennis + padel) ====== */
 
     const tennisGeoJsonUrl = "tennis_it.geojson";
 
@@ -485,21 +615,27 @@
       .then((r) => {
         const gj = r.data;
         if (!gj || !gj.features) throw new Error("GeoJSON vuoto o non valido.");
-        ingestTennis(gj.features);
+        ingestCourts(gj.features);
         updateLegend();
         updateScaleBar();
+        updateSymbolSizes();
+        updateCourtVisibility();
       })
       .catch((e) => {
         console.error(e);
-        showError("Errore nel caricamento dei campi da tennis.");
+        showError("Errore nel caricamento dei campi.");
       })
       .finally(() => {
         loadingMsg.classList.add("hidden");
       });
 
-    function createTennisPopupTemplate(attrs) {
+    function createCourtPopupTemplate(attrs) {
+      const sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
+      const isPadel = sportValue === "padel";
+      const titolo = attrs.name || (isPadel ? "Campo da padel" : "Campo da tennis");
+
       return {
-        title: attrs.name || "Campo da tennis",
+        title: titolo,
         content: function(event) {
           const graphic = event.graphic;
           const a = graphic.attributes || {};
@@ -535,7 +671,7 @@
       };
     }
 
-    function ingestTennis(features) {
+    function ingestCourts(features) {
       for (const f of features) {
         const c = f.geometry && f.geometry.coordinates;
         if (!c || c.length < 2) continue;
@@ -544,11 +680,13 @@
           latitude: +c[1]
         });
         const attrs = f.properties || {};
+        const symbol = createCourtSymbol(attrs);
+
         const g = new Graphic({
           geometry: pt,
           attributes: attrs,
-          symbol: symTennis,
-          popupTemplate: createTennisPopupTemplate(attrs)
+          symbol: symbol,
+          popupTemplate: createCourtPopupTemplate(attrs)
         });
         allPoints.push(g);
         tennisLayer.add(g);
@@ -657,7 +795,7 @@
       view.goTo({ target: ext, padding }).catch(()=>{});
     }
 
-    /* ====== NEAREST (CAMPI DA TENNIS) ====== */
+    /* ====== NEAREST (CAMPI) ====== */
     function buildSpatialGrid(points, gridSize=0.5) {
       spatialGrid = {};
       for (const p of points) {
@@ -691,7 +829,13 @@
         buildSpatialGrid(allPoints);
       }
 
-      const active = allPoints;
+      const active = allPoints.filter(isCourtVisibleByFilter);
+      if (!active.length) {
+        nearest = [];
+        renderInfo();
+        return;
+      }
+
       const gridSize = 0.5;
       const gx = Math.floor(pt.longitude / gridSize);
       const gy = Math.floor(pt.latitude / gridSize);
@@ -742,7 +886,8 @@
     }
 
     function renderInfo() {
-      let html = "<h4 style='margin:4px 0 6px'>   Campi da tennis più vicini <small>(entro 5 km)</small>:</h4>";
+      let html = "<h4 style='margin:4px 0 6px'>Campi più vicini <small>(entro 5 km)</small>:</h4>";
+
       if (!nearest.length) {
         html += "<p style='margin:0'>Nessun campo trovato nella distanza impostata.</p>";
       } else {
@@ -752,13 +897,16 @@
           const name =
             a.name ||
             `Campo #${a.OBJECTID ?? "sconosciuto"}`;
-          const leisure = a.leisure ? ` (${a.leisure})` : "";
-          const sport = a.sport ? ` – ${a.sport}` : "";
-          html += "<li>" + name + leisure + sport +
-                  " — " + o.distance.toLocaleString('it-IT') + " m</li>";
+          const sportValue = a.sport ? String(a.sport) : "";
+          const sportLabel = sportValue ? ` (${sportValue})` : "";
+          const distLabel = o.distance.toLocaleString('it-IT') + " m";
+
+          // SOLO: Nome, sport, distanza
+          html += `<li><strong>${name}</strong>${sportLabel} — ${distLabel}</li>`;
         }
         html += "</ul>";
       }
+
       infoContent.innerHTML = html;
     }
 
@@ -905,6 +1053,8 @@
       for (const layer of layers) {
         layer.graphics.items.forEach(g => {
           if (!g.geometry) return;
+          if (layer === tennisLayer && !g.visible) return; // rispetta toggle tennis/padel
+
           const gWgs = (g.geometry.spatialReference?.wkid === 4326)
             ? g.geometry
             : toWGS84(g.geometry);
