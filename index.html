@@ -396,24 +396,10 @@
       width:3
     });
 
-    /* ====== FUNZIONI SIMBOLO DINAMICO (Tennis/Padel + scala) ====== */
-    function getSymbolSize(scale) {
-      // dimensione dinamica tra 4px (scala lontana) e 7px (scala vicina)
-      const minSize  = 4;
-      const maxSize  = 7;
-      const minScale = 2_000_000; // scala più piccola (lontano)
-      const maxScale = 5_000;     // scala grande (molto vicino)
-
-      const clamped = Math.max(Math.min(scale, minScale), maxScale);
-      const t = (minScale - clamped) / (minScale - maxScale); // 0..1
-      return minSize + t * (maxSize - minSize);
-    }
-
+    /* ====== SIMBOLO CAMPi (statico, tennis vs padel) ====== */
     function createCourtSymbol(attrs) {
       const sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
       const isPadel = sportValue === "padel";
-
-      const size = getSymbolSize(view.scale || 1e6);
 
       return new SimpleMarkerSymbol({
         color: isPadel ? [255, 0, 0, 0.9]        // padel = rosso
@@ -423,7 +409,7 @@
                          : [80, 220, 255, 1],
           width: 1
         },
-        size: size
+        size: 5                                  // dimensione fissa per stabilità
       });
     }
 
@@ -444,27 +430,6 @@
       if (view.center) {
         findNearest(view.center.clone());
       }
-    }
-
-    function updateSymbolSizes() {
-      const scale = view.scale || 1e6;
-      const newSize = getSymbolSize(scale);
-      tennisLayer.graphics.items.forEach(g => {
-        const attrs = g.attributes || {};
-        const sportValue = (attrs.sport ? String(attrs.sport) : "").toLowerCase();
-        const isPadel = sportValue === "padel";
-
-        const sym = g.symbol.clone();
-        sym.size = newSize;
-        if (isPadel) {
-          sym.color = [255, 0, 0, 0.9];
-          sym.outline = { color:[255,200,200,1], width:1 };
-        } else {
-          sym.color = [0, 112, 255, 0.9];
-          sym.outline = { color:[80,220,255,1], width:1 };
-        }
-        g.symbol = sym;
-      });
     }
 
     /* ====== UTIL UI ====== */
@@ -581,7 +546,7 @@
     }
     map.layers.on("change", updateLegend);
 
-    // Barra scala dinamica
+    // Barra scala dinamica (solo testo, niente resize simboli)
     function updateScaleBar() {
       const scale = view.scale;
       let distance, unit;
@@ -603,7 +568,6 @@
 
     view.watch("scale", () => {
       updateScaleBar();
-      updateSymbolSizes();
     });
     view.watch("center", updateScaleBar);
 
@@ -618,7 +582,6 @@
         ingestCourts(gj.features);
         updateLegend();
         updateScaleBar();
-        updateSymbolSizes();
         updateCourtVisibility();
       })
       .catch((e) => {
