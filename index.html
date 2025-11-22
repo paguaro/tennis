@@ -56,7 +56,7 @@
       transition: all 0.3s ease;
       top:100px;
       right:10px;
-      width:min(260px,42vw);
+      width:min(240px,35vw);
       max-height:50%;
       opacity:0.9;
     }
@@ -233,6 +233,42 @@
       color:#000;
       border:1px solid #ccc;
     }
+
+    /* Lista risultati "campi più vicini" cliccabile */
+    .nearest-list {
+      margin:0;
+      padding:0;
+    }
+    .nearest-item {
+      display:flex;
+      align-items:flex-start;
+      gap:6px;
+      padding:3px 4px;
+      border-radius:4px;
+      cursor:pointer;
+      transition:background-color 0.15s ease;
+    }
+    .nearest-item:hover {
+      background:#f0f7ff; /* effetto mouseover */
+    }
+    .nearest-dot {
+      flex:0 0 8px;
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      margin-top:5px;
+    }
+    .nearest-text {
+      flex:1;
+      font-size:12px;
+    }
+    .nearest-name {
+      margin:0;
+    }
+    .nearest-distance {
+      font-size:11px;
+      color:#555;
+    }
   </style>
 </head>
 <body>
@@ -371,7 +407,6 @@
     let showPadel  = true;
 
     /* ====== SIMBOLI BASE ====== */
-    // Usato solo per posizione utente, linee, selezione ecc.
     const symLocation = new SimpleMarkerSymbol({
       color:[0,200,0,0.9],
       outline:{ color:[255,255,255], width:2 },
@@ -393,7 +428,7 @@
       width:3
     });
 
-    /* ====== SIMBOLO CAMPI (statico, tennis vs padel, 4px) ====== */
+    /* ====== SIMBOLO CAMPI ====== */
     function createCourtSymbol(attrs) {
       const sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
       const isPadel = sportValue === "padel";
@@ -402,28 +437,26 @@
         color: isPadel ? [255, 0, 0, 0.9]        // padel = rosso
                        : [0, 112, 255, 0.9],     // tennis = blu
         outline: {
-          color: isPadel ? [255, 200, 200, 1]   // contorno chiaro padel
+          color: isPadel ? [255, 200, 200, 1]
                          : [80, 220, 255, 1],
           width: 1
         },
-        size: 4                                  // dimensione fissa ridotta
+        size: 4
       });
     }
 
-    // sport visibile in base ai toggle
     function isCourtVisibleByFilter(graphic) {
       const attrs = graphic.attributes || {};
       const sportValue = (attrs.sport ? String(attrs.sport) : "").toLowerCase();
       if (sportValue === "padel")  return showPadel;
       if (sportValue === "tennis") return showTennis;
-      return true; // fallback per altri
+      return true;
     }
 
     function updateCourtVisibility() {
       tennisLayer.graphics.items.forEach(g => {
         g.visible = isCourtVisibleByFilter(g);
       });
-      // NIENTE findNearest qui per alleggerire
     }
 
     /* ====== UTIL UI ====== */
@@ -440,7 +473,7 @@
       showError._t = setTimeout(() => errorBox.style.display = "none", ms);
     }
 
-    // Legenda aggiornata (tennis vs padel con toggle separati)
+    // Legenda aggiornata
     function updateLegend() {
       while (legendContainer.children.length > 1) {
         legendContainer.removeChild(legendContainer.lastChild);
@@ -449,7 +482,6 @@
         if (!layer.title || layer.listMode !== "show") return;
 
         if (layer === tennisLayer) {
-          // Riga tennis (checkbox dedicato)
           const itemT = document.createElement("div");
           itemT.className = "legend-item";
 
@@ -475,7 +507,6 @@
           itemT.appendChild(checkboxT);
           legendContainer.appendChild(itemT);
 
-          // Riga padel (checkbox dedicato)
           const itemP = document.createElement("div");
           itemP.className = "legend-item";
 
@@ -540,26 +571,72 @@
     }
     map.layers.on("change", updateLegend);
 
-    // Barra scala dinamica (solo testo, nessun resize simboli)
+    // Scala dinamica migliorata (geodesica su ~100px al centro)
     function updateScaleBar() {
-      const scale = view.scale;
-      let distance, unit;
-      if (scale > 1000000) {
-        distance = Math.round(scale / 100000) * 100;
-        unit = "km";
-        distance = distance / 100;
-      } else if (scale > 1000) {
-        distance = Math.round(scale / 100) * 100;
-        unit = "m";
-      } else {
-        distance = Math.round(scale);
-        unit = "m";
-      }
-      scaleBar.textContent = unit === "m"
-        ? `${distance.toLocaleString('it-IT')} m`
-        : `${distance} ${unit}`;
-    }
+      try {
+        if (!view || !view.ready || !view.container) {
+          return;
+        }
 
+        const width = view.width;
+        const height = view.height;
+        if (!width || !height) {
+          return;
+        }
+
+        // segmento orizzontale di 100px attorno al centro
+        const cx = width / 2;
+        const cy = height / 2;
+        const p1Screen = { x: cx - 50, y: cy };
+        const p2Screen = { x: cx + 50, y: cy };
+
+        const p1Map = view.toMap(p1Screen);
+        const p2Map = view.toMap(p2Screen);
+        if (!p1Map || !p2Map) {
+          return;
+        }
+
+        let p1 = p1Map;
+        let p2 = p2Map;
+
+        if (p1.spatialReference && p1.spatialReference.wkid !== 4326) {
+          p1 = webMercatorUtils.webMercatorToGeographic(p1);
+          p2 = webMercatorUtils.webMercatorToGeographic(p2);
+        }
+
+        const dMeters = haversineMeters(
+          { latitude: p1.latitude, longitude: p1.longitude },
+          { latitude: p2.latitude, longitude: p2.longitude }
+        );
+
+        if (!isFinite(dMeters) || dMeters <= 0) {
+          return;
+        }
+
+        const pow10 = Math.pow(10, Math.floor(Math.log10(dMeters)));
+        const norm = dMeters / pow10;
+        let mult;
+        if (norm < 1.5) mult = 1;
+        else if (norm < 3.5) mult = 2;
+        else if (norm < 7.5) mult = 5;
+        else mult = 10;
+        const nice = mult * pow10;
+
+        let label;
+        let unit;
+        if (nice >= 1000) {
+          label = (nice / 1000).toLocaleString('it-IT');
+          unit = "km";
+        } else {
+          label = nice.toLocaleString('it-IT');
+          unit = "m";
+        }
+
+        scaleBar.textContent = `${label} ${unit}`;
+      } catch (e) {
+        console.error("Errore updateScaleBar:", e);
+      }
+    }
     view.watch("scale", updateScaleBar);
     view.watch("center", updateScaleBar);
 
@@ -669,7 +746,6 @@
       return html;
     }
 
-    // Azioni popup (Waze / Google / copia)
     reactiveUtils.on(() => view.popup, "trigger-action", (event) => {
       const graphic = view.popup.selectedFeature;
       if (!graphic) return;
@@ -727,7 +803,6 @@
       showToast("GeoJSON copiato negli appunti!");
     }
 
-    /* ====== FIT TO GRAPHICS ====== */
     function fitToGraphics(graphics, padding=40) {
       if (!graphics || !graphics.length) return;
       let xmin=Infinity, ymin=Infinity, xmax=-Infinity, ymax=-Infinity;
@@ -750,7 +825,6 @@
       view.goTo({ target: ext, padding }).catch(()=>{});
     }
 
-    /* ====== NEAREST (CAMPI) ====== */
     function buildSpatialGrid(points, gridSize=0.5) {
       spatialGrid = {};
       for (const p of points) {
@@ -812,7 +886,6 @@
         }
       }
 
-      // fallback se pochi candidati
       if (candidates.length < 5) {
         candidates = active.map(g => ({
           feature: g,
@@ -820,7 +893,6 @@
         }));
       }
 
-      // max 5 km, top 5
       nearest = candidates
         .filter(o => o.distance <= 5000)
         .sort((a,b) => a.distance - b.distance)
@@ -840,38 +912,12 @@
       renderInfo();
     }
 
-    function renderInfo() {
-      let html = "<h4 style='margin:4px 0 6px'>Campi più vicini <small>(entro 5 km)</small>:</h4>";
-
-      if (!nearest.length) {
-        html += "<p style='margin:0'>Nessun campo trovato nella distanza impostata.</p>";
-      } else {
-        html += "<ul style='margin:0; padding-left:16px; font-size:12px;'>";
-        for (const o of nearest) {
-          const a = o.feature.attributes || {};
-          const name =
-            a.name ||
-            `Campo #${a.OBJECTID ?? "sconosciuto"}`;
-          const sportValue = a.sport ? String(a.sport) : "";
-          const sportLabel = sportValue ? ` (${sportValue})` : "";
-          const distLabel = o.distance.toLocaleString('it-IT') + " m";
-
-          // SOLO: Nome, sport, distanza
-          html += `<li><strong>${name}</strong>${sportLabel} — ${distLabel}</li>`;
-        }
-        html += "</ul>";
-      }
-
-      infoContent.innerHTML = html;
-    }
-
-    // iniziale: un calcolo quando la view è pronta
+    // auto: quando la view è pronta e quando si ferma
     view.when(() => {
       updateScaleBar();
       if (view.center) findNearest(view.center);
     });
 
-    // versione mobile: ricalcola solo quando la view è ferma
     reactiveUtils.watch(
       () => view.stationary,
       (stationary) => {
@@ -880,6 +926,86 @@
         }
       }
     );
+
+    // misura anche da click/tap
+    view.on("click", (event) => {
+      if (!event.mapPoint) {
+        return;
+      }
+
+      let pt = event.mapPoint;
+
+      if (pt.spatialReference && pt.spatialReference.wkid !== 4326) {
+        pt = webMercatorUtils.webMercatorToGeographic(pt);
+      }
+
+      findNearest(pt);
+    });
+
+    // pan/zoom + popup su uno dei 5 record
+    function focusNearestIndex(idx) {
+      const item = nearest[idx];
+      if (!item || !item.feature || !item.feature.geometry) return;
+      const g = item.feature;
+      const geom = g.geometry;
+
+      view.goTo({ target: geom, zoom: 17 }).catch(()=>{});
+
+      view.openPopup({
+        features:[g],
+        location: geom
+      });
+    }
+
+    function attachNearestEvents() {
+      const rows = infoContent.querySelectorAll(".nearest-item");
+      rows.forEach(row => {
+        row.addEventListener("click", () => {
+          const idx = Number(row.getAttribute("data-idx"));
+          if (!Number.isNaN(idx)) {
+            focusNearestIndex(idx);
+          }
+        });
+      });
+    }
+
+    function renderInfo() {
+      let html = "<h4 style='margin:4px 0 6px; text-align:center;'>Campi più vicini <small>(entro 5 km)</small>:</h4>";
+
+      if (!nearest.length) {
+        html += "<p style='margin:0'>Nessun campo trovato nella distanza impostata.</p>";
+      } else {
+        html += "<div class='nearest-list'>";
+        nearest.forEach((o, idx) => {
+          const a = o.feature.attributes || {};
+          const name = a.name || `Campo #${a.OBJECTID ?? "sconosciuto"}`;
+          const sportValue = (a.sport ? String(a.sport) : "").toLowerCase();
+          const sportLabel = sportValue ? ` (${sportValue})` : "";
+          const distLabel = o.distance.toLocaleString('it-IT') + " m";
+
+          let dotColor = "#999999";
+          if (sportValue === "padel") {
+            dotColor = "#ff0000";
+          } else if (sportValue === "tennis") {
+            dotColor = "#0070ff";
+          }
+
+          html += `
+            <div class="nearest-item" data-idx="${idx}">
+              <span class="nearest-dot" style="background-color:${dotColor};"></span>
+              <div class="nearest-text">
+                <div class="nearest-name"><strong>${name}</strong>${sportLabel}</div>
+                <div class="nearest-distance">${distLabel}</div>
+              </div>
+            </div>
+          `;
+        });
+        html += "</div>";
+      }
+
+      infoContent.innerHTML = html;
+      attachNearestEvents();
+    }
 
     /* ====== GPS ====== */
     btnGPS.addEventListener("click", () => {
@@ -1009,7 +1135,7 @@
       for (const layer of layers) {
         layer.graphics.items.forEach(g => {
           if (!g.geometry) return;
-          if (layer === tennisLayer && !g.visible) return; // rispetta toggle tennis/padel
+          if (layer === tennisLayer && !g.visible) return;
 
           const gWgs = (g.geometry.spatialReference?.wkid === 4326)
             ? g.geometry
@@ -1043,7 +1169,10 @@
       showToast(`Selezionate ${selectedItems.length} feature`);
       if (selectedItems.length) {
         const geoms = selectedItems.map(it => it.geometry);
-        const unionExt = geoms.reduce((acc, g) => acc ? acc.union(g.extent) : g.extent, null);
+        const unionExt = geoms.reduce(
+          (acc, g) => acc ? acc.union(g.extent) : g.extent,
+          null
+        );
         if (unionExt) {
           view.goTo({ target: unionExt.expand(1.2) }).catch(()=>{});
         }
