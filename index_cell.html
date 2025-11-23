@@ -129,7 +129,7 @@
     const map = new Map({ basemap: "osm" });
     const view = new MapView({
       container: "viewDiv", map, center: [12, 42], zoom: 5,
-      popupEnabled: true, ui: { components: ["attribution"] }
+      popup: { enabled: true }, ui: { components: ["attribution"] }
     });
 
     const tennisLayer = new GraphicsLayer({ title:"Campi da tennis/padel", listMode:"show" });
@@ -138,6 +138,8 @@
     map.addMany([tennisLayer, linesLayer, locLayer]);
 
     view.ui.add(new Zoom({ view }), "top-left");
+    
+    // Usiamo il widget Home originale invece del componente web
     view.ui.add(new Home({ view }), "top-left");
 
     const legendContainer = document.createElement("div");
@@ -146,11 +148,27 @@
     const legendExpand = new Expand({ view, content: legendContainer, expandIconClass:"esri-icon-layer-list", expandTooltip:"Legenda" });
     view.ui.add(legendExpand, "top-left");
 
+    // Usiamo il widget Search originale invece del componente web
     const searchWidget = new Search({ view });
     view.ui.add(new Expand({ view, content: searchWidget, expandIcon:"search", expandTooltip:"Cerca luogo" }), "top-left");
 
-    const basemapGallery = new BasemapGallery({ view });
-    view.ui.add(new Expand({ view, content: basemapGallery, expandIconClass:"esri-icon-basemap", expandTooltip:"Cambia mappa" }), "bottom-right");
+    // Usiamo il widget BasemapGallery originale invece del componente web
+const basemapGallery = new BasemapGallery({ 
+  view: view,
+  container: document.createElement("div")
+});
+
+const basemapExpand = new Expand({ 
+  view: view, 
+  content: basemapGallery, 
+  expandIconClass: "esri-icon-basemap", 
+  expandTooltip: "Cambia mappa",
+  // Aggiungi auto-hide
+  autoCollapse: true,
+  expanded: false
+});
+
+view.ui.add(basemapExpand, "bottom-right");
 
     const btnGPS      = document.getElementById("btnGPS");
     const infoPanel   = document.getElementById("infoPanel");
