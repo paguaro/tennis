@@ -256,7 +256,7 @@
       touch-action: manipulation;
     }
     .nearest-item:hover {
-      background:#f0f7ff; /* effetto mouseover */
+      background:#f0f7ff;
     }
     .nearest-dot {
       flex:0 0 8px;
@@ -660,8 +660,8 @@
           const graphic = event.graphic;
           const a = graphic.attributes || {};
           const g = graphic.geometry;
-          const lat = Number(g.latitude ?? g.y).toFixed(6);
-          const lon = Number(g.longitude ?? g.x).toFixed(6);
+          const lat = Number(typeof g.latitude === 'number' ? g.latitude : g.y).toFixed(6);
+          const lon = Number(typeof g.longitude === 'number' ? g.longitude : g.x).toFixed(6);
           return buildTable(a) +
             "<div style='margin-top:8px;'><strong>Coordinate:</strong> " +
             lat + ", " + lon + "</div>";
@@ -738,8 +738,10 @@
       const graphic = view.popup.selectedFeature;
       if (!graphic) return;
       const geom = graphic.geometry;
-      const lat = (geom.latitude ?? geom.y)?.toFixed(6);
-      const lon = (geom.longitude ?? geom.x)?.toFixed(6);
+      const latVal = (typeof geom.latitude === 'number' ? geom.latitude : geom.y);
+      const lonVal = (typeof geom.longitude === 'number' ? geom.longitude : geom.x);
+      const lat = (latVal != null ? latVal.toFixed(6) : '');
+      const lon = (lonVal != null ? lonVal.toFixed(6) : '');
       const attrs = graphic.attributes;
 
       switch (event.action.id) {
@@ -750,7 +752,7 @@
           openNavigation("google", lat, lon);
           break;
         case "copy-coords":
-          copyToClipboard(`${lat}, ${lon}`);
+          copyToClipboard(lat + ", " + lon);
           showToast("Coordinate copiate!");
           break;
         case "copy-geojson":
@@ -761,15 +763,15 @@
 
     function openNavigation(app, lat, lon) {
       const url = app === "waze"
-        ? `https://waze.com/ul?ll=${lat},${lon}&navigate=yes`
-        : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+        ? "https://waze.com/ul?ll=" + lat + "," + lon + "&navigate=yes"
+        : "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lon;
       window.open(url, "_blank");
     }
 
     function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).catch(err => {
+      navigator.clipboard.writeText(text).catch(function(err) {
         console.error("Errore nella copia:", err);
-        const ta = document.createElement("textarea");
+        var ta = document.createElement("textarea");
         ta.value = text;
         document.body.appendChild(ta);
         ta.select();
@@ -797,8 +799,8 @@
       for (const g of graphics) {
         const geom = g.geometry;
         if (!geom) continue;
-        const x = geom.longitude ?? geom.x;
-        const y = geom.latitude ?? geom.y;
+        const x = (geom.longitude != null ? geom.longitude : geom.x);
+        const y = (geom.latitude != null ? geom.latitude : geom.y);
         if (typeof x !== "number" || typeof y !== "number") continue;
         if (x < xmin) xmin = x;
         if (y < ymin) ymin = y;
@@ -820,7 +822,7 @@
         const lat = p.geometry.latitude;
         const gx = Math.floor(lon / gridSize);
         const gy = Math.floor(lat / gridSize);
-        const key = `${gx},${gy}`;
+        const key = gx + "," + gy;
         if (!spatialGrid[key]) spatialGrid[key] = [];
         spatialGrid[key].push(p);
       }
@@ -828,13 +830,13 @@
 
     function haversineMeters(a,b) {
       const R = 6371000;
-      const toRad = d => d*Math.PI/180;
+      const toRad = function(d){ return d*Math.PI/180; };
       const dLat = toRad(b.latitude - a.latitude);
       const dLon = toRad(b.longitude - a.longitude);
       const lat1 = toRad(a.latitude);
       const lat2 = toRad(b.latitude);
-      const s = Math.sin(dLat/2)**2 +
-                Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+      const s = Math.sin(dLat/2)*Math.sin(dLat/2) +
+                Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)*Math.sin(dLon/2);
       return Math.round(2*R*Math.asin(Math.sqrt(s)));
     }
 
@@ -860,11 +862,11 @@
 
       for (let x = gx-2; x <= gx+2; x++) {
         for (let y = gy-2; y <= gy+2; y++) {
-          const key = `${x},${y}`;
+          const key = x + "," + y;
           const cell = spatialGrid[key];
           if (!cell) continue;
           for (const g of cell) {
-            if (active.includes(g)) {
+            if (active.indexOf(g) !== -1) {
               candidates.push({
                 feature: g,
                 distance: haversineMeters(pt, g.geometry)
@@ -875,15 +877,17 @@
       }
 
       if (candidates.length < 5) {
-        candidates = active.map(g => ({
-          feature: g,
-          distance: haversineMeters(pt, g.geometry)
-        }));
+        candidates = active.map(function(g){
+          return {
+            feature: g,
+            distance: haversineMeters(pt, g.geometry)
+          };
+        });
       }
 
       nearest = candidates
-        .filter(o => o.distance <= 5000)
-        .sort((a,b) => a.distance - b.distance)
+        .filter(function(o){ return o.distance <= 5000; })
+        .sort(function(a,b){ return a.distance - b.distance; })
         .slice(0, 5);
 
       for (const item of nearest) {
@@ -901,14 +905,14 @@
     }
 
     // auto: quando la view è pronta e quando si ferma
-    view.when(() => {
+    view.when(function() {
       updateScaleBar();
       if (view.center) findNearest(view.center);
     });
 
     reactiveUtils.watch(
-      () => view.stationary,
-      (stationary) => {
+      function(){ return view.stationary; },
+      function(stationary) {
         if (stationary && view.center) {
           findNearest(view.center.clone());
         }
@@ -916,7 +920,7 @@
     );
 
     // misura anche da click/tap
-    view.on("click", (event) => {
+    view.on("click", function(event) {
       if (!event.mapPoint) return;
       let pt = event.mapPoint;
       if (pt.spatialReference && pt.spatialReference.wkid !== 4326) {
@@ -940,14 +944,14 @@
 
     function attachNearestEvents() {
       const rows = infoContent.querySelectorAll(".nearest-item");
-      rows.forEach(row => {
-        row.addEventListener("click", () => {
-          const idx = Number(row.getAttribute("data-idx"));
-          if (!Number.isNaN(idx)) {
+      for (var i=0; i<rows.length; i++) {
+        rows[i].addEventListener("click", function() {
+          const idx = Number(this.getAttribute("data-idx"));
+          if (!isNaN(idx)) {
             focusNearestIndex(idx);
           }
         });
-      });
+      }
     }
 
     function renderInfo() {
@@ -957,11 +961,11 @@
         html += "<p style='margin:0'>Nessun campo trovato nella distanza impostata.</p>";
       } else {
         html += "<div class='nearest-list'>";
-        nearest.forEach((o, idx) => {
+        nearest.forEach(function(o, idx) {
           const a = o.feature.attributes || {};
-          const name = a.name || `Campo #${a.OBJECTID ?? "sconosciuto"}`;
+          const name = a.name || ("Campo #" + (a.OBJECTID != null ? a.OBJECTID : "sconosciuto"));
           const sportValue = (a.sport ? String(a.sport) : "").toLowerCase();
-          const sportLabel = sportValue ? ` (${sportValue})` : "";
+          const sportLabel = sportValue ? (" (" + sportValue + ")") : "";
           const distLabel = o.distance.toLocaleString('it-IT') + " m";
 
           let dotColor = "#999999";
@@ -971,15 +975,14 @@
             dotColor = "#0070ff";
           }
 
-          html += `
-            <div class="nearest-item" data-idx="${idx}">
-              <span class="nearest-dot" style="background-color:${dotColor};"></span>
-              <div class="nearest-text">
-                <div class="nearest-name"><strong>${name}</strong>${sportLabel}</div>
-                <div class="nearest-distance">${distLabel}</div>
-              </div>
-            </div>
-          `;
+          html +=
+            '<div class="nearest-item" data-idx="' + idx + '">' +
+              '<span class="nearest-dot" style="background-color:' + dotColor + ';"></span>' +
+              '<div class="nearest-text">' +
+                '<div class="nearest-name"><strong>' + name + '</strong>' + sportLabel + '</div>' +
+                '<div class="nearest-distance">' + distLabel + '</div>' +
+              '</div>' +
+            '</div>';
         });
         html += "</div>";
       }
@@ -989,13 +992,13 @@
     }
 
     /* ====== GPS ====== */
-    btnGPS.addEventListener("click", () => {
+    btnGPS.addEventListener("click", function() {
       if (!navigator.geolocation) {
         showError("Geolocalizzazione non supportata.");
         return;
       }
       navigator.geolocation.getCurrentPosition(
-        p => {
+        function(p) {
           const pt = new Point({
             longitude: p.coords.longitude,
             latitude: p.coords.latitude
@@ -1006,12 +1009,14 @@
           showToast("Posizione impostata");
           findNearest(pt);
         },
-        () => showError("Impossibile ottenere la posizione."),
+        function() {
+          showError("Impossibile ottenere la posizione.");
+        },
         { enableHighAccuracy:true, maximumAge:30000, timeout:10000 }
       );
     });
 
-    /* ====== WIDGET SELEZIONE (rettangolo → GeoJSON) ====== */
+    /* ====== WIDGET SELEZIONE ====== */
     const selContainer = document.createElement("div");
     selContainer.className = "select-widget";
     selContainer.innerHTML = `
@@ -1054,42 +1059,42 @@
 
     let selectedItems = [];
 
-    const toWGS84 = (geom) => {
+    const toWGS84 = function(geom) {
       if (!geom) return geom;
       const sr = geom.spatialReference;
       if (sr && (sr.wkid === 4326 || sr.isWGS84)) return geom;
       return webMercatorUtils.webMercatorToGeographic(geom);
     };
 
-    btnSelectRect.addEventListener("click", () => {
+    btnSelectRect.addEventListener("click", function() {
       selectionDrawLayer.removeAll();
       selectionLayer.removeAll();
       selectedItems = [];
       updateSelCounter();
       sketchVM.create("rectangle");
     });
-    btnClearSel.addEventListener("click", () => {
+    btnClearSel.addEventListener("click", function() {
       selectionDrawLayer.removeAll();
       selectionLayer.removeAll();
       selectedItems = [];
       updateSelCounter();
     });
 
-    sketchVM.on("create", (evt) => {
-      if (evt.state === "complete" && evt.graphic?.geometry) {
+    sketchVM.on("create", function(evt) {
+      if (evt.state === "complete" && evt.graphic && evt.graphic.geometry) {
         const rectWgs = toWGS84(evt.graphic.geometry);
         runSelection(rectWgs);
       }
     });
 
     function updateSelCounter() {
-      selCountEl.textContent = selectedItems.length.toString();
+      selCountEl.textContent = String(selectedItems.length);
     }
 
     function visibleGraphicsLayers() {
       const ignore = new Set([linesLayer, locLayer, selectionDrawLayer, selectionLayer]);
       const arr = [];
-      map.layers.forEach(layer => {
+      map.layers.forEach(function(layer) {
         if (layer.visible && layer instanceof GraphicsLayer && !ignore.has(layer)) {
           arr.push(layer);
         }
@@ -1112,12 +1117,12 @@
       const layers = visibleGraphicsLayers();
       const ext = rectWgs.extent;
 
-      for (const layer of layers) {
-        layer.graphics.items.forEach(g => {
+      layers.forEach(function(layer) {
+        layer.graphics.items.forEach(function(g) {
           if (!g.geometry) return;
           if (layer === tennisLayer && !g.visible) return;
 
-          const gWgs = (g.geometry.spatialReference?.wkid === 4326)
+          const gWgs = (g.geometry.spatialReference && g.geometry.spatialReference.wkid === 4326)
             ? g.geometry
             : toWGS84(g.geometry);
           const type = gWgs.type;
@@ -1143,16 +1148,15 @@
             }
           }
         });
-      }
+      });
 
       updateSelCounter();
-      showToast(`Selezionate ${selectedItems.length} feature`);
+      showToast("Selezionate " + selectedItems.length + " feature");
       if (selectedItems.length) {
-        const geoms = selectedItems.map(it => it.geometry);
-        const unionExt = geoms.reduce(
-          (acc, g) => acc ? acc.union(g.extent) : g.extent,
-          null
-        );
+        const geoms = selectedItems.map(function(it){ return it.geometry; });
+        const unionExt = geoms.reduce(function(acc, g) {
+          return acc ? acc.union(g.extent) : g.extent;
+        }, null);
         if (unionExt) {
           view.goTo({ target: unionExt.expand(1.2) }).catch(()=>{});
         }
@@ -1161,42 +1165,46 @@
 
     function selectionToGeoJSON() {
       const fc = { type:"FeatureCollection", features:[] };
-      for (const it of selectedItems) {
+      selectedItems.forEach(function(it) {
         const g = it.geometry;
         let geom = null;
         if (g.type === "point") {
           geom = {
             type:"Point",
-            coordinates:[ g.longitude ?? g.x, g.latitude ?? g.y ]
+            coordinates:[
+              (g.longitude != null ? g.longitude : g.x),
+              (g.latitude != null ? g.latitude : g.y)
+            ]
           };
         } else if (g.type === "polyline") {
-          if (g.paths?.length > 1) {
+          if (g.paths && g.paths.length > 1) {
             geom = {
               type:"MultiLineString",
-              coordinates: g.paths.map(path => path.map(([x,y]) => [x,y]))
+              coordinates: g.paths.map(function(path){ return path.map(function(pair){ return [pair[0], pair[1]]; }); })
             };
           } else {
+            const firstPath = (g.paths && g.paths[0]) || [];
             geom = {
               type:"LineString",
-              coordinates:(g.paths?.[0] || []).map(([x,y]) => [x,y])
+              coordinates: firstPath.map(function(pair){ return [pair[0], pair[1]]; })
             };
           }
         } else if (g.type === "polygon") {
           if (g.rings) {
             geom = {
               type:"Polygon",
-              coordinates:g.rings.map(r => r.map(([x,y]) => [x,y]))
+              coordinates: g.rings.map(function(r){ return r.map(function(pair){ return [pair[0], pair[1]]; }); })
             };
           }
         }
-        if (!geom) continue;
+        if (!geom) return;
         const props = { ...it.attributes, _layer: it.layerTitle };
         fc.features.push({ type:"Feature", geometry:geom, properties:props });
-      }
+      });
       return fc;
     }
 
-    btnCopySel.addEventListener("click", () => {
+    btnCopySel.addEventListener("click", function() {
       if (!selectedItems.length) {
         showToast("Nessuna feature selezionata");
         return;
@@ -1206,7 +1214,7 @@
       showToast("GeoJSON copiato negli appunti");
     });
 
-    btnDownloadSel.addEventListener("click", () => {
+    btnDownloadSel.addEventListener("click", function() {
       if (!selectedItems.length) {
         showToast("Nessuna feature selezionata");
         return;
@@ -1215,15 +1223,21 @@
       const blob = new Blob([JSON.stringify(fc, null, 2)], { type:"application/geo+json" });
       const url = URL.createObjectURL(blob);
       const ts = new Date();
-      const pad = n => String(n).padStart(2,"0");
-      const fname = `selezione_${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.geojson`;
+      const pad = function(n){ return String(n).padStart(2,"0"); };
+      const fname = "selezione_" +
+        ts.getFullYear() +
+        pad(ts.getMonth()+1) +
+        pad(ts.getDate()) + "_" +
+        pad(ts.getHours()) +
+        pad(ts.getMinutes()) +
+        pad(ts.getSeconds()) + ".geojson";
       const a = document.createElement("a");
       a.href = url;
       a.download = fname;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
     });
 
   });
