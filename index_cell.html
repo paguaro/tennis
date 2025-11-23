@@ -302,7 +302,7 @@
 
   <script src="https://js.arcgis.com/4.33/"></script>
   <script>
-  // Mobile crash prevention
+  // Mobile crash prevention - solo le ottimizzazioni essenziali
   if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
     window.MOBILE_MODE = true;
     
@@ -352,12 +352,10 @@
       zoom: 5,
       popupEnabled: true,
       ui: { components: ["attribution"] },
-      // Ottimizzazioni per mobile
-      optimizePanAnimation: true,
-      spatialReference: { wkid: 3857 } // Web Mercator per performance
+      optimizePanAnimation: true
     });
 
-    /* ====== LAYERS ====== */
+    /* ====== LAYERS - COME ORIGINALE ====== */
     const tennisLayer        = new GraphicsLayer({ title:"Campi da tennis/padel", listMode:"show" });
     const linesLayer         = new GraphicsLayer({ title:"Linee di connessione", listMode:"show" });
     const locLayer           = new GraphicsLayer({ title:"Mia posizione", listMode:"show" });
@@ -366,13 +364,13 @@
 
     map.addMany([tennisLayer, linesLayer, locLayer, selectionDrawLayer, selectionLayer]);
 
-    /* ====== WIDGETS A SINISTRA ====== */
+    /* ====== WIDGETS - COME ORIGINALE ====== */
     const zoomWidget = new Zoom({ view });
     const homeWidget = new Home({ view });
     view.ui.add(zoomWidget, { position:"top-left", index:0 });
     view.ui.add(homeWidget, { position:"top-left", index:1 });
 
-    // Legenda
+    // Legenda - CARICATA SUBITO
     const legendContainer = document.createElement("div");
     legendContainer.className = "custom-legend";
     legendContainer.innerHTML = '<h4>Legenda</h4>';
@@ -385,7 +383,7 @@
     });
     view.ui.add(legendExpand, { position:"top-left", index:2 });
 
-    // Search
+    // Search - CARICATO SUBITO
     const searchWidget = new Search({ view });
     const searchExpand = new Expand({
       view,
@@ -396,7 +394,7 @@
     });
     view.ui.add(searchExpand, { position:"top-left", index:3 });
 
-    // Basemap
+    // Basemap - CARICATO SUBITO
     const basemapGallery = new BasemapGallery({ view });
     const bgExpand = new Expand({
       view,
@@ -417,7 +415,7 @@
     const loadingMsg  = document.getElementById("loadingMessage");
     const scaleBar    = document.getElementById("scaleBar");
 
-    // Gestione eventi ottimizzata per mobile
+    // Gestione eventi con debouncing leggero
     let toggleTimeout;
     toggleInfo.addEventListener("click", () => {
       clearTimeout(toggleTimeout);
@@ -442,7 +440,7 @@
     let showTennis = true;
     let showPadel  = true;
 
-    /* ====== SIMBOLI BASE ====== */
+    /* ====== SIMBOLI BASE - COME ORIGINALE ====== */
     const symLocation = new SimpleMarkerSymbol({
       color:[0,200,0,0.9],
       outline:{ color:[255,255,255], width:2 },
@@ -464,7 +462,7 @@
       width:3
     });
 
-    /* ====== SIMBOLO CAMPI ====== */
+    /* ====== SIMBOLO CAMPI - COME ORIGINALE ====== */
     function createCourtSymbol(attrs) {
       const sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
       const isPadel = sportValue === "padel";
@@ -509,7 +507,7 @@
       showError._t = setTimeout(() => errorBox.style.display = "none", ms);
     }
 
-    // Legenda aggiornata
+    // Legenda aggiornata - COME ORIGINALE
     function updateLegend() {
       while (legendContainer.children.length > 1) {
         legendContainer.removeChild(legendContainer.lastChild);
@@ -608,7 +606,6 @@
     map.layers.on("change", updateLegend);
 
     // Scala dinamica migliorata (geodesica su ~100px al centro)
-    let scaleUpdateTimeout;
     function updateScaleBar() {
       try {
         if (!view || !view.ready || !view.container) {
@@ -674,16 +671,10 @@
         console.error("Errore updateScaleBar:", e);
       }
     }
+    view.watch("scale", updateScaleBar);
+    view.watch("center", updateScaleBar);
 
-    function throttledUpdateScaleBar() {
-      clearTimeout(scaleUpdateTimeout);
-      scaleUpdateTimeout = setTimeout(updateScaleBar, 100);
-    }
-
-    view.watch("scale", throttledUpdateScaleBar);
-    view.watch("center", throttledUpdateScaleBar);
-
-    /* ====== CARICAMENTO GEOJSON CAMPI (tennis + padel) ====== */
+    /* ====== CARICAMENTO GEOJSON CAMPI (tennis + padel) - COME ORIGINALE ====== */
 
     const tennisGeoJsonUrl = "tennis_it.geojson";
 
@@ -691,7 +682,7 @@
       .then((r) => {
         const gj = r.data;
         if (!gj || !gj.features) throw new Error("GeoJSON vuoto o non valido.");
-        ingestCourts(gj.features);
+        ingestCourts(gj.features); // CARICA TUTTI I PUNTI
         updateLegend();
         updateScaleBar();
         updateCourtVisibility();
@@ -1086,7 +1077,7 @@
       }, 50);
     });
 
-    /* ====== WIDGET SELEZIONE (rettangolo → GeoJSON) ====== */
+    /* ====== WIDGET SELEZIONE (rettangolo → GeoJSON) - COME ORIGINALE ====== */
 
     const selContainer = document.createElement("div");
     selContainer.className = "select-widget";
@@ -1300,16 +1291,6 @@
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 2000);
-    });
-
-    // Cleanup per prevenire memory leak
-    view.watch("updating", (updating) => {
-      if (!updating) {
-        // Forza garbage collection quando possibile
-        if (window.gc) {
-          setTimeout(() => window.gc(), 1000);
-        }
-      }
     });
 
   });
