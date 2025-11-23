@@ -7,261 +7,103 @@
   <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
   <style>
     html, body, #viewDiv {
-      height:100%;
-      width:100%;
-      margin:0;
-      padding:0;
-      -webkit-text-size-adjust:100%;
-      -webkit-tap-highlight-color: transparent;
-      -webkit-touch-callout: none;
-    }
-    .esri-ui .esri-widget,
-    .esri-ui button,
-    .esri-ui input,
-    .esri-ui select {
-      font-size:12px;
-      line-height:1.2;
+      height:100%; width:100%; margin:0; padding:0;
+      -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none;
     }
 
-    /* Barra icone (solo GPS) in alto a destra */
+    /* Pulsante GPS originale */
     .iconbar {
-      position:absolute;
-      top:15px;
-      right:10px;
-      z-index:6;
-      display:flex;
-      gap:6px;
-      align-items:center;
+      position:absolute; top:15px; right:10px; z-index:6;
+      display:flex; gap:6px; align-items:center;
     }
     .iconbtn {
-      background:transparent;
-      border:none;
-      cursor:pointer;
-      padding:6px;
-      min-width:32px;
-      font-size:20px;
-      line-height:1;
-      border-radius:8px;
-      touch-action: manipulation;
+      background:transparent; border:none; cursor:pointer;
+      padding:6px; min-width:32px; font-size:20px; line-height:1;
+      border-radius:8px; touch-action:manipulation;
     }
     .iconbtn:active { transform:scale(.96); }
 
-    /* Pannello info "campi vicini" */
+    /* Pannello campi vicini */
     #infoPanel {
-      position:absolute;
-      background:#fff;
-      padding:6px 8px;
-      border-radius:8px;
-      box-shadow:0 2px 10px rgba(0,0,0,.15);
-      font-size:9px;
-      z-index:5;
-      overflow-y:auto;
-      transition: all 0.3s ease;
-      top:100px;
-      right:10px;
-      width:min(240px,35vw);
-      max-height:50%;
-      opacity:0.9;
-      -webkit-overflow-scrolling: touch;
+      position:absolute; top:100px; right:10px; z-index:5;
+      background:#fff; padding:6px 8px; border-radius:8px;
+      box-shadow:0 2px 10px rgba(0,0,0,.15); font-size:9px;
+      overflow-y:auto; transition:all 0.3s ease; width:min(240px,35vw);
+      max-height:50%; opacity:0.9; -webkit-overflow-scrolling:touch;
     }
-    #infoPanel.collapsed {
-      max-height:24px;
-      opacity:0.4;
-      padding:4px;
-    }
+    #infoPanel.collapsed { max-height:24px; opacity:0.4; padding:4px; }
     #infoContent { font-size:12px; }
-
     .toggle-chip {
-      position:absolute;
-      top:4px;
-      left:4px;
-      background:#f2f2f2;
-      border:1px solid #ddd;
-      cursor:pointer;
-      border-radius:6px;
-      padding:2px 6px;
-      font-size:14px;
-      line-height:1.1;
-      user-select:none;
-      z-index:10;
-      touch-action: manipulation;
+      position:absolute; top:4px; left:4px; background:#f2f2f2;
+      border:1px solid #ddd; cursor:pointer; border-radius:6px;
+      padding:2px 6px; font-size:14px; user-select:none; z-index:10;
     }
 
-    .info-table {
-      width:100%;
-      border-collapse:collapse;
-      font-size:11px;
-    }
-    .info-table th,
-    .info-table td {
-      text-align:left;
-      padding:2px 4px;
-      border-bottom:1px dotted #eee;
-      vertical-align:top;
-      word-break:break-word;
-    }
-    .info-table th {
-      width:40%;
-      color:#444;
-      font-weight:600;
-    }
-
-    /* Toast & Error */
+    /* Messaggi */
     #toast, #error {
-      position:absolute;
-      left:50%;
-      transform:translateX(-50%);
-      color:#fff;
-      padding:8px 12px;
-      border-radius:6px;
-      z-index:10;
-      display:none;
-      font-size:13px;
-      box-shadow:0 3px 10px rgba(0,0,0,.2);
+      position:absolute; left:50%; transform:translateX(-50%);
+      color:#fff; padding:8px 12px; border-radius:6px; z-index:10;
+      display:none; font-size:13px; box-shadow:0 3px 10px rgba(0,0,0,.2);
     }
     #toast { top:10px; background:#323232; }
     #error { top:50px; background:#d32f2f; }
 
-    /* Loader iniziale */
+    /* Loader */
     #loadingMessage {
-      position:absolute;
-      inset:0;
-      display:grid;
-      place-items:center;
-      pointer-events:none;
-      z-index:7;
+      position:absolute; inset:0; display:grid; place-items:center;
+      pointer-events:none; z-index:7;
     }
     #loadingBox {
-      background:#fff;
-      padding:12px 14px;
-      border-radius:10px;
-      box-shadow:0 4px 16px rgba(0,0,0,.2);
-      font-size:14px;
+      background:#fff; padding:12px 14px; border-radius:10px;
+      box-shadow:0 4px 16px rgba(0,0,0,.2); font-size:14px;
     }
     .hidden { display:none !important; }
 
-    /* Legenda personalizzata */
+    /* Legenda */
     .custom-legend {
-      background:white;
-      padding:8px;
-      border-radius:6px;
-      box-shadow:0 2px 8px rgba(0,0,0,0.15);
-      max-height:250px;
-      overflow-y:auto;
-      font-size:11px;
-    }
-    .custom-legend h4 {
-      margin:0 0 8px 0;
-      font-size:12px;
+      background:white; padding:8px; border-radius:6px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.15); max-height:250px;
+      overflow-y:auto; font-size:11px;
     }
     .legend-item {
-      display:flex;
-      align-items:center;
-      margin-bottom:6px;
-      padding:2px;
+      display:flex; align-items:center; margin-bottom:6px; padding:2px;
     }
     .legend-color {
-      width:14px;
-      height:14px;
-      margin-right:6px;
-      border-radius:50%;
+      width:14px; height:14px; margin-right:6px; border-radius:50%;
     }
     .line-color {
-      width:14px;
-      height:3px;
-      margin-right:6px;
-      background-color:rgba(255,0,0,0.6);
+      width:14px; height:3px; margin-right:6px; background-color:rgba(255,0,0,0.6);
     }
     .legend-label { flex:1; font-size:11px; }
-    .legend-checkbox {
-      margin-left:6px;
-      transform:scale(0.8);
-    }
+    .legend-checkbox { margin-left:6px; transform:scale(0.8); }
 
-    /* Scala dinamica (stile simile a select) */
-    #scaleBar {
-      position:absolute;
-      bottom:30px;
-      left:50%;
-      transform:translateX(-10%);
-      background:rgba(255, 255, 255, 0.8);
-      padding:2px 15px;
-      border-radius:2px;
-      font-size:10px;
-      z-index:3;
-      box-shadow:0 1px 3px rgba(0,0,0,0.3);
-      color:#ff0000;
-      font-weight:bold;
-    }
-
-    button {
-      background-color:#0079c1;
-      color:#fff;
-      border:none;
-      cursor:pointer;
-      border-radius:6px;
-      padding:6px 8px;
-      font-size:12px;
-      touch-action: manipulation;
-    }
-    button:hover { background-color:#005a8c; }
-
-    /* Lista risultati "campi più vicini" cliccabile */
-    .nearest-list {
-      margin:0;
-      padding:0;
-    }
+    /* Risultati */
     .nearest-item {
-      display:flex;
-      align-items:flex-start;
-      gap:6px;
-      padding:3px 4px;
-      border-radius:4px;
-      cursor:pointer;
-      transition:background-color 0.15s ease;
-      touch-action: manipulation;
+      display:flex; align-items:flex-start; gap:6px; padding:3px 4px;
+      border-radius:4px; cursor:pointer; transition:background-color 0.15s ease;
+      touch-action:manipulation;
     }
-    .nearest-item:hover {
-      background:#f0f7ff;
-    }
-    .nearest-dot {
-      flex:0 0 8px;
-      width:8px;
-      height:8px;
-      border-radius:50%;
-      margin-top:5px;
-    }
-    .nearest-text {
-      flex:1;
-      font-size:12px;
-    }
-    .nearest-name {
-      margin:0;
-    }
-    .nearest-distance {
-      font-size:11px;
-      color:#555;
-    }
+    .nearest-item:hover { background:#f0f7ff; }
+    .nearest-dot { flex:0 0 8px; width:8px; height:8px; border-radius:50%; margin-top:5px; }
+    .nearest-name { margin:0; }
+    .nearest-distance { font-size:11px; color:#555; }
   </style>
 </head>
 <body>
   <div id="viewDiv"></div>
 
-  <!-- Barra icone: solo GPS -->
+  <!-- Pulsante GPS originale -->
   <div class="iconbar">
-    <button id="btnGPS" class="iconbtn" title="Localizzami">📍</button>
+    <button id="btnGPS" class="iconbtn" title="Localizzami">GPS</button>
   </div>
 
-  <!-- Pannello info "campi vicini" -->
+  <!-- Pannello campi vicini -->
   <div id="infoPanel">
-    <button id="toggleInfo" class="toggle-chip" title="Minimizza / Espandi">📋</button>
+    <button id="toggleInfo" class="toggle-chip" title="Minimizza / Espandi">List</button>
     <div id="infoContent"></div>
   </div>
 
-  <!-- Scala dinamica -->
-  <div id="scaleBar"></div>
-
-  <!-- Toast + Error + Loader -->
+  <!-- Messaggi -->
   <div id="toast"></div>
   <div id="error"></div>
   <div id="loadingMessage"><div id="loadingBox">Caricamento campi da tennis…</div></div>
@@ -278,74 +120,38 @@
     "esri/request","esri/core/reactiveUtils",
     "esri/geometry/support/webMercatorUtils"
   ], function(
-    Map, MapView,
-    GraphicsLayer, Graphic,
-    Point, Polyline, Extent,
+    Map, MapView, GraphicsLayer, Graphic, Point, Polyline, Extent,
     SimpleMarkerSymbol, SimpleLineSymbol,
-    Search, BasemapGallery, Expand,
-    Zoom, Home,
-    esriRequest, reactiveUtils,
-    webMercatorUtils
+    Search, BasemapGallery, Expand, Zoom, Home,
+    esriRequest, reactiveUtils, webMercatorUtils
   ){
 
-    /* ====== MAPPA & UI BASE ====== */
-    const map = new Map({ basemap: "streets-navigation-vector" });
+    const map = new Map({ basemap: "osm" });
     const view = new MapView({
-      container: "viewDiv",
-      map,
-      center: [12, 42],
-      zoom: 5,
-      popupEnabled: true,
-      ui: { components: ["attribution"] },
-      optimizePanAnimation: true
+      container: "viewDiv", map, center: [12, 42], zoom: 5,
+      popupEnabled: true, ui: { components: ["attribution"] }
     });
 
-    /* ====== LAYERS ====== */
     const tennisLayer = new GraphicsLayer({ title:"Campi da tennis/padel", listMode:"show" });
     const linesLayer  = new GraphicsLayer({ title:"Linee di connessione", listMode:"show" });
     const locLayer    = new GraphicsLayer({ title:"Mia posizione", listMode:"show" });
-
     map.addMany([tennisLayer, linesLayer, locLayer]);
 
-    /* ====== WIDGETS ====== */
-    const zoomWidget = new Zoom({ view });
-    const homeWidget = new Home({ view });
-    view.ui.add(zoomWidget, { position:"top-left", index:0 });
-    view.ui.add(homeWidget, { position:"top-left", index:1 });
+    view.ui.add(new Zoom({ view }), "top-left");
+    view.ui.add(new Home({ view }), "top-left");
 
     const legendContainer = document.createElement("div");
     legendContainer.className = "custom-legend";
     legendContainer.innerHTML = '<h4>Legenda</h4>';
-    const legendExpand = new Expand({
-      view,
-      content: legendContainer,
-      expanded:false,
-      expandIconClass:"esri-icon-layer-list",
-      expandTooltip:"Legenda"
-    });
-    view.ui.add(legendExpand, { position:"top-left", index:2 });
+    const legendExpand = new Expand({ view, content: legendContainer, expandIconClass:"esri-icon-layer-list", expandTooltip:"Legenda" });
+    view.ui.add(legendExpand, "top-left");
 
     const searchWidget = new Search({ view });
-    const searchExpand = new Expand({
-      view,
-      content: searchWidget,
-      expanded:false,
-      expandIcon:"search",
-      expandTooltip:"Cerca luogo"
-    });
-    view.ui.add(searchExpand, { position:"top-left", index:3 });
+    view.ui.add(new Expand({ view, content: searchWidget, expandIcon:"search", expandTooltip:"Cerca luogo" }), "top-left");
 
     const basemapGallery = new BasemapGallery({ view });
-    const bgExpand = new Expand({
-      view,
-      content: basemapGallery,
-      expandIconClass:"esri-icon-basemap",
-      expandTooltip:"Cambia mappa di base"
-    });
-    view.ui.add(bgExpand, "bottom-right");
-    basemapGallery.watch("activeBasemap", function() { bgExpand.expanded = false; });
+    view.ui.add(new Expand({ view, content: basemapGallery, expandIconClass:"esri-icon-basemap", expandTooltip:"Cambia mappa" }), "bottom-right");
 
-    /* ====== DOM UI ELEMENTI ====== */
     const btnGPS      = document.getElementById("btnGPS");
     const infoPanel   = document.getElementById("infoPanel");
     const infoContent = document.getElementById("infoContent");
@@ -353,656 +159,270 @@
     const toast       = document.getElementById("toast");
     const errorBox    = document.getElementById("error");
     const loadingMsg  = document.getElementById("loadingMessage");
-    const scaleBar    = document.getElementById("scaleBar");
 
-    toggleInfo.addEventListener("click", function() {
-      const collapsed = infoPanel.classList.contains("collapsed");
-      if (collapsed) {
-        infoPanel.classList.remove("collapsed");
-        toggleInfo.textContent = "📋";
-      } else {
-        infoPanel.classList.add("collapsed");
-        toggleInfo.textContent = "▶";
-      }
-    });
+    toggleInfo.addEventListener("click", () => infoPanel.classList.toggle("collapsed"));
 
-    /* ====== STATO ====== */
     const allPoints = [];
     let spatialGrid = {};
     let nearest = [];
-
     let showTennis = true;
     let showPadel  = true;
 
-    /* ====== SIMBOLI ====== */
     const symLocation = new SimpleMarkerSymbol({
-      color:[0,200,0,0.9],
-      outline:{ color:[255,255,255], width:2 },
-      size:10
+      color:[0,200,0,0.9], outline:{ color:[255,255,255], width:2 }, size:10
     });
     const symLine = new SimpleLineSymbol({
-      color:[255,0,0,0.7],
-      width:1.5,
-      style:"short-dash"
+      color:[255,0,0,0.7], width:1.5, style:"short-dash"
     });
 
     function createCourtSymbol(attrs) {
-      const sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
-      const isPadel = sportValue === "padel";
+      const sport = (attrs?.sport || "").toString().toLowerCase();
+      const isPadel = sport === "padel";
       return new SimpleMarkerSymbol({
-        color: isPadel ? [255, 0, 0, 0.9] : [0, 112, 255, 0.9],
-        outline: {
-          color: isPadel ? [255, 200, 200, 1] : [80, 220, 255, 1],
-          width: 1
-        },
+        color: isPadel ? [255,0,0,0.9] : [0,112,255,0.9],
+        outline: { color: isPadel ? [255,200,200,1] : [80,220,255,1], width:1 },
         size: 4
       });
     }
 
-    function isCourtVisibleByFilter(graphic) {
-      const attrs = graphic.attributes || {};
-      const sportValue = (attrs.sport ? String(attrs.sport) : "").toLowerCase();
-      if (sportValue === "padel")  return showPadel;
-      if (sportValue === "tennis") return showTennis;
+    function isCourtVisibleByFilter(g) {
+      const sport = (g.attributes?.sport || "").toString().toLowerCase();
+      if (sport === "padel") return showPadel;
+      if (sport === "tennis") return showTennis;
       return true;
     }
 
-    function updateCourtVisibility() {
-      tennisLayer.graphics.items.forEach(function(g) {
-        g.visible = isCourtVisibleByFilter(g);
-      });
-    }
-
-    /* ====== UTIL UI ====== */
-    function showToast(msg, ms) {
-      if (ms === undefined) ms = 2000;
-      toast.textContent = msg;
-      toast.style.display = "block";
-      clearTimeout(showToast._t);
-      showToast._t = setTimeout(function() {
-        toast.style.display = "none";
-      }, ms);
-    }
-
-    function showError(msg, ms) {
-      if (ms === undefined) ms = 5000;
-      errorBox.textContent = msg;
-      errorBox.style.display = "block";
-      clearTimeout(showError._t);
-      showError._t = setTimeout(function() {
-        errorBox.style.display = "none";
-      }, ms);
-    }
-
     function updateLegend() {
-      while (legendContainer.children.length > 1) {
-        legendContainer.removeChild(legendContainer.lastChild);
-      }
-      map.layers.forEach(function(layer) {
-        if (!layer.title || layer.listMode !== "show") return;
+      while (legendContainer.children.length > 1) legendContainer.removeChild(legendContainer.lastChild);
 
-        if (layer === tennisLayer) {
-          // Tennis
-          var itemT = document.createElement("div");
-          itemT.className = "legend-item";
+      // Tennis
+      const t = document.createElement("div"); t.className = "legend-item";
+      t.innerHTML = `<div class="legend-color" style="background:rgba(0,112,255,0.9)"></div>
+        <span class="legend-label">Campi da tennis</span>
+        <input type="checkbox" class="legend-checkbox" ${showTennis?"checked":""}>`;
+      t.querySelector("input").onchange = e => { showTennis = e.target.checked; tennisLayer.graphics.forEach(g => g.visible = isCourtVisibleByFilter(g)); };
+      legendContainer.appendChild(t);
 
-          var colorT = document.createElement("div");
-          colorT.className = "legend-color";
-          colorT.style.backgroundColor = "rgba(0,112,255,0.85)";
+      // Padel
+      const p = document.createElement("div"); p.className = "legend-item";
+      p.innerHTML = `<div class="legend-color" style="background:rgba(255,0,0,0.9)"></div>
+        <span class="legend-label">Campi da padel</span>
+        <input type="checkbox" class="legend-checkbox" ${showPadel?"checked":""}>`;
+      p.querySelector("input").onchange = e => { showPadel = e.target.checked; tennisLayer.graphics.forEach(g => g.visible = isCourtVisibleByFilter(g)); };
+      legendContainer.appendChild(p);
 
-          var labelT = document.createElement("span");
-          labelT.className = "legend-label";
-          labelT.textContent = "Campi da tennis";
+      // Mia posizione
+      const loc = document.createElement("div"); loc.className = "legend-item";
+      loc.innerHTML = `<div class="legend-color" style="background:rgba(0,200,0,0.9)"></div>
+        <span class="legend-label">Mia posizione</span>
+        <input type="checkbox" class="legend-checkbox" ${locLayer.visible?"checked":""}>`;
+      loc.querySelector("input").onchange = e => locLayer.visible = e.target.checked;
+      legendContainer.appendChild(loc);
 
-          var checkboxT = document.createElement("input");
-          checkboxT.type = "checkbox";
-          checkboxT.className = "legend-checkbox";
-          checkboxT.checked = showTennis;
-          checkboxT.addEventListener("change", function() {
-            showTennis = checkboxT.checked;
-            updateCourtVisibility();
-          });
-
-          itemT.appendChild(colorT);
-          itemT.appendChild(labelT);
-          itemT.appendChild(checkboxT);
-          legendContainer.appendChild(itemT);
-
-          // Padel
-          var itemP = document.createElement("div");
-          itemP.className = "legend-item";
-
-          var colorP = document.createElement("div");
-          colorP.className = "legend-color";
-          colorP.style.backgroundColor = "rgba(255,0,0,0.9)";
-
-          var labelP = document.createElement("span");
-          labelP.className = "legend-label";
-          labelP.textContent = "Campi da padel";
-
-          var checkboxP = document.createElement("input");
-          checkboxP.type = "checkbox";
-          checkboxP.className = "legend-checkbox";
-          checkboxP.checked = showPadel;
-          checkboxP.addEventListener("change", function() {
-            showPadel = checkboxP.checked;
-            updateCourtVisibility();
-          });
-
-          itemP.appendChild(colorP);
-          itemP.appendChild(labelP);
-          itemP.appendChild(checkboxP);
-          legendContainer.appendChild(itemP);
-
-        } else {
-          var item = document.createElement("div");
-          item.className = "legend-item";
-
-          var colorBox = document.createElement("div");
-          if (layer === linesLayer) {
-            colorBox.className = "line-color";
-          } else if (layer === locLayer) {
-            colorBox.className = "legend-color";
-            colorBox.style.backgroundColor = "rgba(0,200,0,0.9)";
-          } else {
-            colorBox.className = "legend-color";
-            colorBox.style.backgroundColor = "rgba(150,150,150,0.8)";
-          }
-
-          var label = document.createElement("span");
-          label.className = "legend-label";
-          label.textContent = layer.title;
-
-          var checkbox = document.createElement("input");
-          checkbox.type = "checkbox";
-          checkbox.className = "legend-checkbox";
-          checkbox.checked = layer.visible;
-          checkbox.addEventListener("change", function() {
-            layer.visible = checkbox.checked;
-          });
-
-          item.appendChild(colorBox);
-          item.appendChild(label);
-          item.appendChild(checkbox);
-          legendContainer.appendChild(item);
-        }
-      });
+      // Linee di connessione
+      const line = document.createElement("div"); line.className = "legend-item";
+      line.innerHTML = `<div class="line-color"></div>
+        <span class="legend-label">Linee di connessione</span>
+        <input type="checkbox" class="legend-checkbox" ${linesLayer.visible?"checked":""}>`;
+      line.querySelector("input").onchange = e => linesLayer.visible = e.target.checked;
+      legendContainer.appendChild(line);
     }
-    map.layers.on("change", updateLegend);
 
-    // Scala dinamica (stessa logica di select)
+    function showToast(msg, ms=2000) {
+      toast.textContent = msg; toast.style.display = "block";
+      clearTimeout(showToast.t); showToast.t = setTimeout(() => toast.style.display = "none", ms);
+    }
+    function showError(msg) {
+      errorBox.textContent = msg; errorBox.style.display = "block";
+      setTimeout(() => errorBox.style.display = "none", 5000);
+    }
+
     function haversineMeters(a,b) {
-      var R = 6371000;
-      function toRad(d){ return d*Math.PI/180; }
-      var dLat = toRad(b.latitude - a.latitude);
-      var dLon = toRad(b.longitude - a.longitude);
-      var lat1 = toRad(a.latitude);
-      var lat2 = toRad(b.latitude);
-      var s = Math.sin(dLat/2)*Math.sin(dLat/2) +
-              Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)*Math.sin(dLon/2);
+      const R = 6371000;
+      const toRad = d => d*Math.PI/180;
+      const dLat = toRad(b.latitude - a.latitude);
+      const dLon = toRad(b.longitude - a.longitude);
+      const lat1 = toRad(a.latitude);
+      const lat2 = toRad(b.latitude);
+      const s = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
       return Math.round(2*R*Math.asin(Math.sqrt(s)));
     }
 
-    function updateScaleBar() {
-      try {
-        if (!view || !view.ready || !view.container) return;
-
-        var width = view.width;
-        var height = view.height;
-        if (!width || !height) return;
-
-        var cx = width / 2;
-        var cy = height / 2;
-        var p1Screen = { x: cx - 50, y: cy };
-        var p2Screen = { x: cx + 50, y: cy };
-
-        var p1Map = view.toMap(p1Screen);
-        var p2Map = view.toMap(p2Screen);
-        if (!p1Map || !p2Map) return;
-
-        var p1 = p1Map;
-        var p2 = p2Map;
-
-        if (p1.spatialReference && p1.spatialReference.wkid !== 4326) {
-          p1 = webMercatorUtils.webMercatorToGeographic(p1);
-          p2 = webMercatorUtils.webMercatorToGeographic(p2);
-        }
-
-        var dMeters = haversineMeters(
-          { latitude: p1.latitude, longitude: p1.longitude },
-          { latitude: p2.latitude, longitude: p2.longitude }
-        );
-
-        if (!isFinite(dMeters) || dMeters <= 0) return;
-
-        var pow10 = Math.pow(10, Math.floor(Math.log10(dMeters)));
-        var norm = dMeters / pow10;
-        var mult;
-        if (norm < 1.5) mult = 1;
-        else if (norm < 3.5) mult = 2;
-        else if (norm < 7.5) mult = 5;
-        else mult = 10;
-        var nice = mult * pow10;
-
-        var label, unit;
-        if (nice >= 1000) {
-          label = (nice / 1000).toLocaleString('it-IT');
-          unit = "km";
-        } else {
-          label = nice.toLocaleString('it-IT');
-          unit = "m";
-        }
-
-        scaleBar.textContent = label + " " + unit;
-      } catch (e) {
-        console.error("Errore updateScaleBar:", e);
-      }
-    }
-    view.watch("scale", updateScaleBar);
-    view.watch("center", updateScaleBar);
-
-    /* ====== CARICAMENTO GEOJSON CAMPI ====== */
-    var tennisGeoJsonUrl = "tennis_it.geojson";
-
-    esriRequest(tennisGeoJsonUrl, { responseType:"json" })
-      .then(function(r) {
-        var gj = r.data;
-        if (!gj || !gj.features) throw new Error("GeoJSON vuoto o non valido.");
-        ingestCourts(gj.features);
-        updateLegend();
-        updateScaleBar();
-        updateCourtVisibility();
-      })
-      .catch(function(e) {
-        console.error(e);
-        showError("Errore nel caricamento dei campi.");
-      })
-      .finally(function() {
-        loadingMsg.classList.add("hidden");
-      });
-
-    function createCourtPopupTemplate(attrs) {
-      var sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
-      var isPadel = sportValue === "padel";
-      var titolo = attrs.name || (isPadel ? "Campo da padel" : "Campo da tennis");
-
+    // === POPUP CON AZIONI WAZE, GOOGLE, COPIA ===
+    function createPopupTemplate(attrs) {
+      const sport = (attrs?.sport || "").toString().toLowerCase();
+      const title = attrs.name || (sport === "padel" ? "Campo da padel" : "Campo da tennis");
       return {
-        title: titolo,
-        content: function(event) {
-          var graphic = event.graphic;
-          var a = graphic.attributes || {};
-          var g = graphic.geometry;
-          var lat = Number(typeof g.latitude === 'number' ? g.latitude : g.y).toFixed(6);
-          var lon = Number(typeof g.longitude === 'number' ? g.longitude : g.x).toFixed(6);
-          return buildTable(a) +
-            "<div style='margin-top:8px;'><strong>Coordinate:</strong> " +
-            lat + ", " + lon + "</div>";
+        title: title,
+        content: ({ graphic }) => {
+          const a = graphic.attributes;
+          let table = "<table style='width:100%;font-size:11px'>";
+          Object.keys(a).sort().forEach(k => {
+            if (a[k]) table += `<tr><th style='text-align:left;padding:2px 4px'>${k.replace(/_/g," ").replace(/\b\w/g,l=>l.toUpperCase())}</th><td>${a[k]}</td></tr>`;
+          });
+          table += `</table><div style='margin-top:8px'><strong>Coordinate:</strong> ${graphic.geometry.latitude.toFixed(6)}, ${graphic.geometry.longitude.toFixed(6)}</div>`;
+          return table;
         },
         actions: [
-          {
-            title:"Waze",
-            id:"open-waze",
-            image:"https://paguaro.github.io/Points_icnf/waze-icon.png"
-          },
-          {
-            title:"Google Maps",
-            id:"open-google-maps",
-            image:"https://paguaro.github.io/Points_icnf/google-maps-icon.png"
-          },
-          {
-            title:"Copia coordinate",
-            id:"copy-coords",
-            image:"https://paguaro.github.io/Points_icnf/coordinates-icon.png"
-          },
-          {
-            title:"Copia GeoJSON",
-            id:"copy-geojson",
-            image:"https://paguaro.github.io/Points_icnf/geojson-icon.png"
-          }
+          { title:"Waze", id:"open-waze", image:"https://paguaro.github.io/Points_icnf/waze-icon.png" },
+          { title:"Google Maps", id:"open-google-maps", image:"https://paguaro.github.io/Points_icnf/google-maps-icon.png" },
+          { title:"Copia coordinate", id:"copy-coords", image:"https://paguaro.github.io/Points_icnf/coordinates-icon.png" },
+          { title:"Copia GeoJSON", id:"copy-geojson", image:"https://paguaro.github.io/Points_icnf/geojson-icon.png" }
         ]
       };
     }
 
-    function ingestCourts(features) {
-      for (var i=0; i<features.length; i++) {
-        var f = features[i];
-        var c = f.geometry && f.geometry.coordinates;
-        if (!c || c.length < 2) continue;
-        var pt = new Point({
-          longitude: +c[0],
-          latitude: +c[1]
+    // === CARICAMENTO GEOJSON ===
+    esriRequest("tennis_it.geojson", { responseType:"json" })
+      .then(r => {
+        const features = r.data.features || [];
+        features.forEach(f => {
+          const c = f.geometry?.coordinates;
+          if (!c || c.length < 2) return;
+          const pt = new Point({ longitude: +c[0], latitude: +c[1] });
+          const g = new Graphic({
+            geometry: pt,
+            attributes: f.properties || {},
+            symbol: createCourtSymbol(f.properties),
+            popupTemplate: createPopupTemplate(f.properties)
+          });
+          allPoints.push(g);
+          tennisLayer.add(g);
         });
-        var attrs = f.properties || {};
-        var symbol = createCourtSymbol(attrs);
 
-        var g = new Graphic({
-          geometry: pt,
-          attributes: attrs,
-          symbol: symbol,
-          popupTemplate: createCourtPopupTemplate(attrs)
-        });
-        allPoints.push(g);
-        tennisLayer.add(g);
-      }
+        if (allPoints.length) {
+          view.goTo(allPoints.map(g => g.geometry)).catch(() => {});
+          buildSpatialGrid(allPoints);
+          updateLegend();
+        }
+      })
+      .catch(e => { console.error(e); showError("Errore caricamento dati"); })
+      .finally(() => loadingMsg.classList.add("hidden"));
 
-      if (tennisLayer.graphics.items.length) {
-        fitToGraphics(tennisLayer.graphics.items, 60);
-      }
-      if (allPoints.length) {
-        buildSpatialGrid(allPoints);
-        if (view.center) findNearest(view.center);
-      }
-    }
-
-    function buildTable(attrs) {
-      var entries = [];
-      for (var k in (attrs || {})) {
-        if (!attrs.hasOwnProperty(k)) continue;
-        var v = attrs[k];
-        if (v == null || v === "") continue;
-        entries.push([k, v]);
-      }
-      entries.sort(function(a,b){ return a[0].localeCompare(b[0]); });
-
-      var html = "<table class='info-table'><tbody>";
-      for (var i=0; i<entries.length; i++) {
-        var k = entries[i][0];
-        var v = entries[i][1];
-        var label = k.replace(/_/g," ").replace(/\b\w/g,function(l){return l.toUpperCase();});
-        html += "<tr><th>" + label + "</th><td>" + v + "</td></tr>";
-      }
-      html += "</tbody></table>";
-      return html;
-    }
-
-    reactiveUtils.on(function(){ return view.popup; }, "trigger-action", function(event) {
-      var graphic = view.popup.selectedFeature;
-      if (!graphic) return;
-      var geom = graphic.geometry;
-      var latVal = (typeof geom.latitude === 'number' ? geom.latitude : geom.y);
-      var lonVal = (typeof geom.longitude === 'number' ? geom.longitude : geom.x);
-      var lat = (latVal != null ? latVal.toFixed(6) : '');
-      var lon = (lonVal != null ? lonVal.toFixed(6) : '');
-      var attrs = graphic.attributes;
-
-      switch (event.action.id) {
-        case "open-waze":
-          openNavigation("waze", lat, lon);
-          break;
-        case "open-google-maps":
-          openNavigation("google", lat, lon);
-          break;
-        case "copy-coords":
-          copyToClipboard(lat + ", " + lon);
-          showToast("Coordinate copiate!");
-          break;
-        case "copy-geojson":
-          copyGeoJSON(attrs, lat, lon);
-          break;
-      }
-    });
-
-    function openNavigation(app, lat, lon) {
-      var url = app === "waze"
-        ? "https://waze.com/ul?ll=" + lat + "," + lon + "&navigate=yes"
-        : "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lon;
-      window.open(url, "_blank");
-    }
-
-    function copyToClipboard(text) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).catch(function(err) {
-          console.error("Errore nella copia:", err);
-          fallbackCopy(text);
-        });
-      } else {
-        fallbackCopy(text);
-      }
-    }
-
-    function fallbackCopy(text) {
-      var ta = document.createElement("textarea");
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
-
-    function copyGeoJSON(attributes, lat, lon) {
-      var feature = {
-        type:"Feature",
-        geometry:{
-          type:"Point",
-          coordinates:[ parseFloat(lon), parseFloat(lat) ]
-        },
-        properties:{}
-      };
-      for (var k in (attributes || {})) {
-        if (!attributes.hasOwnProperty(k)) continue;
-        feature.properties[k] = attributes[k];
-      }
-      copyToClipboard(JSON.stringify(feature, null, 2));
-      showToast("GeoJSON copiato negli appunti!");
-    }
-
-    function fitToGraphics(graphics, padding) {
-      if (padding === undefined) padding = 40;
-      if (!graphics || !graphics.length) return;
-      var xmin=Infinity, ymin=Infinity, xmax=-Infinity, ymax=-Infinity;
-      for (var i=0; i<graphics.length; i++) {
-        var g = graphics[i];
-        var geom = g.geometry;
-        if (!geom) continue;
-        var x = (geom.longitude != null ? geom.longitude : geom.x);
-        var y = (geom.latitude != null ? geom.latitude : geom.y);
-        if (typeof x !== "number" || typeof y !== "number") continue;
-        if (x < xmin) xmin = x;
-        if (y < ymin) ymin = y;
-        if (x > xmax) xmax = x;
-        if (y > ymax) ymax = y;
-      }
-      if (!isFinite(xmin) || !isFinite(ymin) || !isFinite(xmax) || !isFinite(ymax)) return;
-      var ext = new Extent({
-        xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax,
-        spatialReference:{ wkid:4326 }
-      });
-      view.goTo({ target: ext, padding: padding }).catch(function(){});
-    }
-
-    function buildSpatialGrid(points, gridSize) {
-      if (gridSize === undefined) gridSize = 0.5;
+    function buildSpatialGrid(points) {
       spatialGrid = {};
-      for (var i=0; i<points.length; i++) {
-        var p = points[i];
-        var lon = p.geometry.longitude;
-        var lat = p.geometry.latitude;
-        var gx = Math.floor(lon / gridSize);
-        var gy = Math.floor(lat / gridSize);
-        var key = gx + "," + gy;
-        if (!spatialGrid[key]) spatialGrid[key] = [];
-        spatialGrid[key].push(p);
-      }
+      points.forEach(p => {
+        const gx = Math.floor(p.geometry.longitude / 0.5);
+        const gy = Math.floor(p.geometry.latitude / 0.5);
+        const key = `${gx},${gy}`;
+        (spatialGrid[key] ||= []).push(p);
+      });
     }
 
     function findNearest(pt) {
       if (!allPoints.length || !pt) return;
       linesLayer.removeAll();
+      nearest = [];
 
-      if (!Object.keys(spatialGrid).length) {
-        buildSpatialGrid(allPoints);
+      const visible = allPoints.filter(isCourtVisibleByFilter);
+      if (!visible.length) { renderInfo(); return; }
+
+      const gx = Math.floor(pt.longitude / 0.5);
+      const gy = Math.floor(pt.latitude / 0.5);
+      let candidates = [];
+      for (let dx=-2; dx<=2; dx++) for (let dy=-2; dy<=2; dy++) {
+        const cell = spatialGrid[`${gx+dx},${gy+dy}`];
+        if (cell) candidates.push(...cell);
       }
-
-      var active = allPoints.filter(isCourtVisibleByFilter);
-      if (!active.length) {
-        nearest = [];
-        renderInfo();
-        return;
-      }
-
-      var gridSize = 0.5;
-      var gx = Math.floor(pt.longitude / gridSize);
-      var gy = Math.floor(pt.latitude / gridSize);
-      var candidates = [];
-
-      for (var x = gx-2; x <= gx+2; x++) {
-        for (var y = gy-2; y <= gy+2; y++) {
-          var key = x + "," + y;
-          var cell = spatialGrid[key];
-          if (!cell) continue;
-          for (var i=0; i<cell.length; i++) {
-            var g = cell[i];
-            if (active.indexOf(g) !== -1) {
-              candidates.push({
-                feature: g,
-                distance: haversineMeters(pt, g.geometry)
-              });
-            }
-          }
-        }
-      }
-
-      if (candidates.length < 5) {
-        candidates = active.map(function(g){
-          return {
-            feature: g,
-            distance: haversineMeters(pt, g.geometry)
-          };
-        });
-      }
+      if (candidates.length < 5) candidates = visible;
 
       nearest = candidates
-        .filter(function(o){ return o.distance <= 5000; })
-        .sort(function(a,b){ return a.distance - b.distance; })
-        .slice(0, 5);
+        .map(g => ({ feature: g, distance: haversineMeters(pt, g.geometry) }))
+        .filter(o => o.distance <= 5000)
+        .sort((a,b) => a.distance - b.distance)
+        .slice(0,5);
 
-      for (var j=0; j<nearest.length; j++) {
-        var item = nearest[j];
-        var line = new Polyline({
-          paths: [
-            [pt.longitude, pt.latitude],
-            [item.feature.geometry.longitude, item.feature.geometry.latitude]
-          ],
-          spatialReference:{ wkid:4326 }
-        });
+      nearest.forEach(o => {
+        const line = new Polyline({ paths: [[pt.longitude, pt.latitude], [o.feature.geometry.longitude, o.feature.geometry.latitude]], spatialReference: { wkid: 4326 } });
         linesLayer.add(new Graphic({ geometry: line, symbol: symLine }));
-      }
+      });
 
       renderInfo();
     }
 
-    // auto: quando la view è pronta e quando si ferma
-    view.when(function() {
-      updateScaleBar();
-      if (view.center) findNearest(view.center);
-    });
-
-    reactiveUtils.watch(
-      function(){ return view.stationary; },
-      function(stationary) {
-        if (stationary && view.center) {
-          findNearest(view.center.clone());
-        }
+    function renderInfo() {
+      let html = `<h4 style="margin:4px 0 6px;text-align:center;">Campi più vicini <small>(entro 5 km)</small>:</h4>`;
+      if (!nearest.length) {
+        html += "<p style='margin:0'>Nessun campo trovato entro 5 km.</p>";
+      } else {
+        html += "<div class='nearest-list'>";
+        nearest.forEach((o,i) => {
+          const a = o.feature.attributes;
+          const name = a.name || `Campo #${a.OBJECTID || i+1}`;
+          const sport = (a.sport || "").toString().toLowerCase();
+          const color = sport==="padel" ? "#ff0000" : sport==="tennis" ? "#0070ff" : "#999";
+          html += `
+            <div class="nearest-item" data-idx="${i}">
+              <span class="nearest-dot" style="background:${color}"></span>
+              <div class="nearest-text">
+                <div class="nearest-name"><strong>${name}</strong> ${sport?`(${sport})`:""}</div>
+                <div class="nearest-distance">${o.distance.toLocaleString("it-IT")} m</div>
+              </div>
+            </div>`;
+        });
+        html += "</div>";
       }
-    );
+      infoContent.innerHTML = html;
 
-    // misura anche da click/tap
-    view.on("click", function(event) {
-      if (!event.mapPoint) return;
-      var pt = event.mapPoint;
-      if (pt.spatialReference && pt.spatialReference.wkid !== 4326) {
-        pt = webMercatorUtils.webMercatorToGeographic(pt);
-      }
-      findNearest(pt);
-    });
-
-    // pan/zoom + popup su uno dei 5 record
-    function focusNearestIndex(idx) {
-      var item = nearest[idx];
-      if (!item || !item.feature || !item.feature.geometry) return;
-      var g = item.feature;
-      var geom = g.geometry;
-      view.goTo({ target: geom, zoom: 17 }).catch(function(){});
-      view.openPopup({
-        features:[g],
-        location: geom
+      infoContent.querySelectorAll(".nearest-item").forEach(el => {
+        el.onclick = () => {
+          const g = nearest[el.dataset.idx].feature;
+          view.goTo({ target: g.geometry, zoom: 17 });
+          view.popup.open({ features: [g], location: g.geometry });
+        };
       });
     }
 
-    function attachNearestEvents() {
-      var rows = infoContent.querySelectorAll(".nearest-item");
-      for (var i=0; i<rows.length; i++) {
-        rows[i].addEventListener("click", function() {
-          var idx = Number(this.getAttribute("data-idx"));
-          if (!isNaN(idx)) {
-            focusNearestIndex(idx);
-          }
-        });
+    // === AZIONI POPUP (Waze, Google, Copia) ===
+    reactiveUtils.on(() => view.popup, "trigger-action", event => {
+      if (!view.popup.selectedFeature) return;
+      const g = view.popup.selectedFeature.geometry;
+      const lat = g.latitude.toFixed(6);
+      const lon = g.longitude.toFixed(6);
+      const attrs = view.popup.selectedFeature.attributes;
+
+      switch (event.action.id) {
+        case "open-waze":
+          window.open(`https://waze.com/ul?ll=${lat},${lon}&navigate=yes`, "_blank");
+          break;
+        case "open-google-maps":
+          window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`, "_blank");
+          break;
+        case "copy-coords":
+          navigator.clipboard?.writeText?.(`${lat}, ${lon}`).then(() => showToast("Coordinate copiate!"));
+          break;
+        case "copy-geojson":
+          const geojson = JSON.stringify({
+            type:"Feature",
+            geometry:{ type:"Point", coordinates:[parseFloat(lon), parseFloat(lat)] },
+            properties: attrs
+          }, null, 2);
+          navigator.clipboard?.writeText?.(geojson).then(() => showToast("GeoJSON copiato!"));
+          break;
       }
-    }
+    });
 
-    function renderInfo() {
-      var html = "<h4 style='margin:4px 0 6px; text-align:center;'>Campi più vicini <small>(entro 5 km)</small>:</h4>";
+    // Aggiornamenti automatici
+    view.when(() => { if (view.center) findNearest(view.center); });
+    reactiveUtils.watch(() => view.stationary, s => { if (s && view.center) findNearest(view.center.clone()); });
+    view.on("click", e => { if (e.mapPoint) findNearest(e.mapPoint); });
 
-      if (!nearest.length) {
-        html += "<p style='margin:0'>Nessun campo trovato nella distanza impostata.</p>";
-      } else {
-        html += "<div class='nearest-list'>";
-        for (var i=0; i<nearest.length; i++) {
-          var o = nearest[i];
-          var a = o.feature.attributes || {};
-          var name = a.name || ("Campo #" + (a.OBJECTID != null ? a.OBJECTID : "sconosciuto"));
-          var sportValue = (a.sport ? String(a.sport) : "").toLowerCase();
-          var sportLabel = sportValue ? (" (" + sportValue + ")") : "";
-          var distLabel = o.distance.toLocaleString('it-IT') + " m";
-
-          var dotColor = "#999999";
-          if (sportValue === "padel") {
-            dotColor = "#ff0000";
-          } else if (sportValue === "tennis") {
-            dotColor = "#0070ff";
-          }
-
-          html +=
-            '<div class="nearest-item" data-idx="' + i + '">' +
-              '<span class="nearest-dot" style="background-color:' + dotColor + ';"></span>' +
-              '<div class="nearest-text">' +
-                '<div class="nearest-name"><strong>' + name + '</strong>' + sportLabel + '</div>' +
-                '<div class="nearest-distance">' + distLabel + '</div>' +
-              '</div>' +
-            '</div>';
-        }
-        html += "</div>";
-      }
-
-      infoContent.innerHTML = html;
-      attachNearestEvents();
-    }
-
-    /* ====== GPS ====== */
-    btnGPS.addEventListener("click", function() {
-      if (!navigator.geolocation) {
-        showError("Geolocalizzazione non supportata.");
-        return;
-      }
+    // GPS con pin verde originale
+    btnGPS.onclick = () => {
+      if (!navigator.geolocation) return showError("Geolocalizzazione non supportata");
       navigator.geolocation.getCurrentPosition(
-        function(p) {
-          var pt = new Point({
-            longitude: p.coords.longitude,
-            latitude: p.coords.latitude
-          });
-          view.goTo({ target: pt, zoom: 14 }).catch(function(){});
+        pos => {
+          const pt = new Point({ longitude: pos.coords.longitude, latitude: pos.coords.latitude });
+          view.goTo({ target: pt, zoom: 14 });
           locLayer.removeAll();
           locLayer.add(new Graphic({ geometry: pt, symbol: symLocation }));
-          showToast("Posizione impostata");
+          showToast("Posizione rilevata");
           findNearest(pt);
         },
-        function() {
-          showError("Impossibile ottenere la posizione.");
-        },
-        { enableHighAccuracy:true, maximumAge:30000, timeout:10000 }
+        () => showError("Impossibile ottenere la posizione"),
+        { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
       );
-    });
+    };
 
   });
   </script>
