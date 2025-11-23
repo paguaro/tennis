@@ -178,49 +178,20 @@
       transform:scale(0.8);
     }
 
-    /* Scala dinamica */
+    /* Scala dinamica (stile simile a select) */
     #scaleBar {
       position:absolute;
-      bottom:20px;
+      bottom:30px;
       left:50%;
-      transform:translateX(-50%);
+      transform:translateX(-10%);
       background:rgba(255, 255, 255, 0.8);
-      padding:2px 5px;
+      padding:2px 15px;
       border-radius:2px;
-      font-size:8px;
-      z-index:5;
+      font-size:10px;
+      z-index:3;
       box-shadow:0 1px 3px rgba(0,0,0,0.3);
       color:#ff0000;
       font-weight:bold;
-    }
-
-    /* Widget Selezione (semplice) */
-    .select-widget {
-      background:#fff;
-      padding:10px;
-      border-radius:8px;
-      box-shadow:0 2px 8px rgba(0,0,0,.15);
-      max-width:min(300px, 70vw);
-      font-size:11px;
-    }
-    .select-widget h4 {
-      margin:0 0 8px 0;
-      font-size:13px;
-    }
-    .sel-row {
-      display:flex;
-      gap:6px;
-      flex-wrap:wrap;
-      margin-top:6px;
-    }
-    .sel-row button {
-      flex:1;
-      min-width:120px;
-    }
-    .sel-counter {
-      font-size:11px;
-      margin:6px 0;
-      color:#333;
     }
 
     button {
@@ -234,11 +205,6 @@
       touch-action: manipulation;
     }
     button:hover { background-color:#005a8c; }
-    .btn-ghost {
-      background:#fff;
-      color:#000;
-      border:1px solid #ccc;
-    }
 
     /* Lista risultati "campi più vicini" cliccabile */
     .nearest-list {
@@ -310,7 +276,7 @@
     "esri/widgets/Search","esri/widgets/BasemapGallery","esri/widgets/Expand",
     "esri/widgets/Zoom","esri/widgets/Home",
     "esri/request","esri/core/reactiveUtils",
-    "esri/widgets/Sketch/SketchViewModel","esri/geometry/geometryEngine","esri/geometry/support/webMercatorUtils"
+    "esri/geometry/support/webMercatorUtils"
   ], function(
     Map, MapView,
     GraphicsLayer, Graphic,
@@ -319,7 +285,7 @@
     Search, BasemapGallery, Expand,
     Zoom, Home,
     esriRequest, reactiveUtils,
-    SketchViewModel, geometryEngine, webMercatorUtils
+    webMercatorUtils
   ){
 
     /* ====== MAPPA & UI BASE ====== */
@@ -335,13 +301,11 @@
     });
 
     /* ====== LAYERS ====== */
-    const tennisLayer        = new GraphicsLayer({ title:"Campi da tennis/padel", listMode:"show" });
-    const linesLayer         = new GraphicsLayer({ title:"Linee di connessione", listMode:"show" });
-    const locLayer           = new GraphicsLayer({ title:"Mia posizione", listMode:"show" });
-    const selectionDrawLayer = new GraphicsLayer({ title:"Disegno selezione", listMode:"hide" });
-    const selectionLayer     = new GraphicsLayer({ title:"Selezione", listMode:"show" });
+    const tennisLayer = new GraphicsLayer({ title:"Campi da tennis/padel", listMode:"show" });
+    const linesLayer  = new GraphicsLayer({ title:"Linee di connessione", listMode:"show" });
+    const locLayer    = new GraphicsLayer({ title:"Mia posizione", listMode:"show" });
 
-    map.addMany([tennisLayer, linesLayer, locLayer, selectionDrawLayer, selectionLayer]);
+    map.addMany([tennisLayer, linesLayer, locLayer]);
 
     /* ====== WIDGETS ====== */
     const zoomWidget = new Zoom({ view });
@@ -379,7 +343,7 @@
       expandTooltip:"Cambia mappa di base"
     });
     view.ui.add(bgExpand, "bottom-right");
-    basemapGallery.watch("activeBasemap", () => { bgExpand.expanded = false; });
+    basemapGallery.watch("activeBasemap", function() { bgExpand.expanded = false; });
 
     /* ====== DOM UI ELEMENTI ====== */
     const btnGPS      = document.getElementById("btnGPS");
@@ -391,7 +355,7 @@
     const loadingMsg  = document.getElementById("loadingMessage");
     const scaleBar    = document.getElementById("scaleBar");
 
-    toggleInfo.addEventListener("click", () => {
+    toggleInfo.addEventListener("click", function() {
       const collapsed = infoPanel.classList.contains("collapsed");
       if (collapsed) {
         infoPanel.classList.remove("collapsed");
@@ -421,16 +385,6 @@
       width:1.5,
       style:"short-dash"
     });
-    const symSelectedPoint = new SimpleMarkerSymbol({
-      style:"circle",
-      color:[0,0,0,0],
-      outline:{ color:[255,215,0,0.95], width:2 },
-      size:8
-    });
-    const symSelectedLine = new SimpleLineSymbol({
-      color:[255,215,0,0.95],
-      width:3
-    });
 
     function createCourtSymbol(attrs) {
       const sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
@@ -454,49 +408,57 @@
     }
 
     function updateCourtVisibility() {
-      tennisLayer.graphics.items.forEach(g => {
+      tennisLayer.graphics.items.forEach(function(g) {
         g.visible = isCourtVisibleByFilter(g);
       });
     }
 
     /* ====== UTIL UI ====== */
-    function showToast(msg, ms=2000) {
+    function showToast(msg, ms) {
+      if (ms === undefined) ms = 2000;
       toast.textContent = msg;
       toast.style.display = "block";
       clearTimeout(showToast._t);
-      showToast._t = setTimeout(() => toast.style.display = "none", ms);
+      showToast._t = setTimeout(function() {
+        toast.style.display = "none";
+      }, ms);
     }
-    function showError(msg, ms=5000) {
+
+    function showError(msg, ms) {
+      if (ms === undefined) ms = 5000;
       errorBox.textContent = msg;
       errorBox.style.display = "block";
       clearTimeout(showError._t);
-      showError._t = setTimeout(() => errorBox.style.display = "none", ms);
+      showError._t = setTimeout(function() {
+        errorBox.style.display = "none";
+      }, ms);
     }
 
     function updateLegend() {
       while (legendContainer.children.length > 1) {
         legendContainer.removeChild(legendContainer.lastChild);
       }
-      map.layers.forEach(layer => {
+      map.layers.forEach(function(layer) {
         if (!layer.title || layer.listMode !== "show") return;
 
         if (layer === tennisLayer) {
-          const itemT = document.createElement("div");
+          // Tennis
+          var itemT = document.createElement("div");
           itemT.className = "legend-item";
 
-          const colorT = document.createElement("div");
+          var colorT = document.createElement("div");
           colorT.className = "legend-color";
           colorT.style.backgroundColor = "rgba(0,112,255,0.85)";
 
-          const labelT = document.createElement("span");
+          var labelT = document.createElement("span");
           labelT.className = "legend-label";
           labelT.textContent = "Campi da tennis";
 
-          const checkboxT = document.createElement("input");
+          var checkboxT = document.createElement("input");
           checkboxT.type = "checkbox";
           checkboxT.className = "legend-checkbox";
           checkboxT.checked = showTennis;
-          checkboxT.addEventListener("change", () => {
+          checkboxT.addEventListener("change", function() {
             showTennis = checkboxT.checked;
             updateCourtVisibility();
           });
@@ -506,22 +468,23 @@
           itemT.appendChild(checkboxT);
           legendContainer.appendChild(itemT);
 
-          const itemP = document.createElement("div");
+          // Padel
+          var itemP = document.createElement("div");
           itemP.className = "legend-item";
 
-          const colorP = document.createElement("div");
+          var colorP = document.createElement("div");
           colorP.className = "legend-color";
           colorP.style.backgroundColor = "rgba(255,0,0,0.9)";
 
-          const labelP = document.createElement("span");
+          var labelP = document.createElement("span");
           labelP.className = "legend-label";
           labelP.textContent = "Campi da padel";
 
-          const checkboxP = document.createElement("input");
+          var checkboxP = document.createElement("input");
           checkboxP.type = "checkbox";
           checkboxP.className = "legend-checkbox";
           checkboxP.checked = showPadel;
-          checkboxP.addEventListener("change", () => {
+          checkboxP.addEventListener("change", function() {
             showPadel = checkboxP.checked;
             updateCourtVisibility();
           });
@@ -532,32 +495,29 @@
           legendContainer.appendChild(itemP);
 
         } else {
-          const item = document.createElement("div");
+          var item = document.createElement("div");
           item.className = "legend-item";
 
-          const colorBox = document.createElement("div");
-          if (layer.title === "Linee di connessione") {
+          var colorBox = document.createElement("div");
+          if (layer === linesLayer) {
             colorBox.className = "line-color";
-          } else if (layer.title === "Mia posizione") {
+          } else if (layer === locLayer) {
             colorBox.className = "legend-color";
             colorBox.style.backgroundColor = "rgba(0,200,0,0.9)";
-          } else if (layer.title === "Selezione") {
-            colorBox.className = "legend-color";
-            colorBox.style.backgroundColor = "rgba(255,215,0,0.95)";
           } else {
             colorBox.className = "legend-color";
             colorBox.style.backgroundColor = "rgba(150,150,150,0.8)";
           }
 
-          const label = document.createElement("span");
+          var label = document.createElement("span");
           label.className = "legend-label";
           label.textContent = layer.title;
 
-          const checkbox = document.createElement("input");
+          var checkbox = document.createElement("input");
           checkbox.type = "checkbox";
           checkbox.className = "legend-checkbox";
           checkbox.checked = layer.visible;
-          checkbox.addEventListener("change", () => {
+          checkbox.addEventListener("change", function() {
             layer.visible = checkbox.checked;
           });
 
@@ -570,49 +530,61 @@
     }
     map.layers.on("change", updateLegend);
 
-    // Scala dinamica
+    // Scala dinamica (stessa logica di select)
+    function haversineMeters(a,b) {
+      var R = 6371000;
+      function toRad(d){ return d*Math.PI/180; }
+      var dLat = toRad(b.latitude - a.latitude);
+      var dLon = toRad(b.longitude - a.longitude);
+      var lat1 = toRad(a.latitude);
+      var lat2 = toRad(b.latitude);
+      var s = Math.sin(dLat/2)*Math.sin(dLat/2) +
+              Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)*Math.sin(dLon/2);
+      return Math.round(2*R*Math.asin(Math.sqrt(s)));
+    }
+
     function updateScaleBar() {
       try {
         if (!view || !view.ready || !view.container) return;
 
-        const width = view.width;
-        const height = view.height;
+        var width = view.width;
+        var height = view.height;
         if (!width || !height) return;
 
-        const cx = width / 2;
-        const cy = height / 2;
-        const p1Screen = { x: cx - 50, y: cy };
-        const p2Screen = { x: cx + 50, y: cy };
+        var cx = width / 2;
+        var cy = height / 2;
+        var p1Screen = { x: cx - 50, y: cy };
+        var p2Screen = { x: cx + 50, y: cy };
 
-        const p1Map = view.toMap(p1Screen);
-        const p2Map = view.toMap(p2Screen);
+        var p1Map = view.toMap(p1Screen);
+        var p2Map = view.toMap(p2Screen);
         if (!p1Map || !p2Map) return;
 
-        let p1 = p1Map;
-        let p2 = p2Map;
+        var p1 = p1Map;
+        var p2 = p2Map;
 
         if (p1.spatialReference && p1.spatialReference.wkid !== 4326) {
           p1 = webMercatorUtils.webMercatorToGeographic(p1);
           p2 = webMercatorUtils.webMercatorToGeographic(p2);
         }
 
-        const dMeters = haversineMeters(
+        var dMeters = haversineMeters(
           { latitude: p1.latitude, longitude: p1.longitude },
           { latitude: p2.latitude, longitude: p2.longitude }
         );
 
         if (!isFinite(dMeters) || dMeters <= 0) return;
 
-        const pow10 = Math.pow(10, Math.floor(Math.log10(dMeters)));
-        const norm = dMeters / pow10;
-        let mult;
+        var pow10 = Math.pow(10, Math.floor(Math.log10(dMeters)));
+        var norm = dMeters / pow10;
+        var mult;
         if (norm < 1.5) mult = 1;
         else if (norm < 3.5) mult = 2;
         else if (norm < 7.5) mult = 5;
         else mult = 10;
-        const nice = mult * pow10;
+        var nice = mult * pow10;
 
-        let label, unit;
+        var label, unit;
         if (nice >= 1000) {
           label = (nice / 1000).toLocaleString('it-IT');
           unit = "km";
@@ -621,7 +593,7 @@
           unit = "m";
         }
 
-        scaleBar.textContent = `${label} ${unit}`;
+        scaleBar.textContent = label + " " + unit;
       } catch (e) {
         console.error("Errore updateScaleBar:", e);
       }
@@ -630,38 +602,38 @@
     view.watch("center", updateScaleBar);
 
     /* ====== CARICAMENTO GEOJSON CAMPI ====== */
-    const tennisGeoJsonUrl = "tennis_it.geojson";
+    var tennisGeoJsonUrl = "tennis_it.geojson";
 
     esriRequest(tennisGeoJsonUrl, { responseType:"json" })
-      .then((r) => {
-        const gj = r.data;
+      .then(function(r) {
+        var gj = r.data;
         if (!gj || !gj.features) throw new Error("GeoJSON vuoto o non valido.");
         ingestCourts(gj.features);
         updateLegend();
         updateScaleBar();
         updateCourtVisibility();
       })
-      .catch((e) => {
+      .catch(function(e) {
         console.error(e);
         showError("Errore nel caricamento dei campi.");
       })
-      .finally(() => {
+      .finally(function() {
         loadingMsg.classList.add("hidden");
       });
 
     function createCourtPopupTemplate(attrs) {
-      const sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
-      const isPadel = sportValue === "padel";
-      const titolo = attrs.name || (isPadel ? "Campo da padel" : "Campo da tennis");
+      var sportValue = (attrs && attrs.sport ? String(attrs.sport) : "").toLowerCase();
+      var isPadel = sportValue === "padel";
+      var titolo = attrs.name || (isPadel ? "Campo da padel" : "Campo da tennis");
 
       return {
         title: titolo,
         content: function(event) {
-          const graphic = event.graphic;
-          const a = graphic.attributes || {};
-          const g = graphic.geometry;
-          const lat = Number(typeof g.latitude === 'number' ? g.latitude : g.y).toFixed(6);
-          const lon = Number(typeof g.longitude === 'number' ? g.longitude : g.x).toFixed(6);
+          var graphic = event.graphic;
+          var a = graphic.attributes || {};
+          var g = graphic.geometry;
+          var lat = Number(typeof g.latitude === 'number' ? g.latitude : g.y).toFixed(6);
+          var lon = Number(typeof g.longitude === 'number' ? g.longitude : g.x).toFixed(6);
           return buildTable(a) +
             "<div style='margin-top:8px;'><strong>Coordinate:</strong> " +
             lat + ", " + lon + "</div>";
@@ -692,17 +664,18 @@
     }
 
     function ingestCourts(features) {
-      for (const f of features) {
-        const c = f.geometry && f.geometry.coordinates;
+      for (var i=0; i<features.length; i++) {
+        var f = features[i];
+        var c = f.geometry && f.geometry.coordinates;
         if (!c || c.length < 2) continue;
-        const pt = new Point({
+        var pt = new Point({
           longitude: +c[0],
           latitude: +c[1]
         });
-        const attrs = f.properties || {};
-        const symbol = createCourtSymbol(attrs);
+        var attrs = f.properties || {};
+        var symbol = createCourtSymbol(attrs);
 
-        const g = new Graphic({
+        var g = new Graphic({
           geometry: pt,
           attributes: attrs,
           symbol: symbol,
@@ -722,27 +695,35 @@
     }
 
     function buildTable(attrs) {
-      const rows = Object.entries(attrs || {})
-        .filter(([k, v]) => v != null && v !== "")
-        .sort(([k1], [k2]) => k1.localeCompare(k2));
-      let html = "<table class='info-table'><tbody>";
-      for (const [k, v] of rows) {
-        const label = k.replace(/_/g," ").replace(/\b\w/g,l=>l.toUpperCase());
+      var entries = [];
+      for (var k in (attrs || {})) {
+        if (!attrs.hasOwnProperty(k)) continue;
+        var v = attrs[k];
+        if (v == null || v === "") continue;
+        entries.push([k, v]);
+      }
+      entries.sort(function(a,b){ return a[0].localeCompare(b[0]); });
+
+      var html = "<table class='info-table'><tbody>";
+      for (var i=0; i<entries.length; i++) {
+        var k = entries[i][0];
+        var v = entries[i][1];
+        var label = k.replace(/_/g," ").replace(/\b\w/g,function(l){return l.toUpperCase();});
         html += "<tr><th>" + label + "</th><td>" + v + "</td></tr>";
       }
       html += "</tbody></table>";
       return html;
     }
 
-    reactiveUtils.on(() => view.popup, "trigger-action", (event) => {
-      const graphic = view.popup.selectedFeature;
+    reactiveUtils.on(function(){ return view.popup; }, "trigger-action", function(event) {
+      var graphic = view.popup.selectedFeature;
       if (!graphic) return;
-      const geom = graphic.geometry;
-      const latVal = (typeof geom.latitude === 'number' ? geom.latitude : geom.y);
-      const lonVal = (typeof geom.longitude === 'number' ? geom.longitude : geom.x);
-      const lat = (latVal != null ? latVal.toFixed(6) : '');
-      const lon = (lonVal != null ? lonVal.toFixed(6) : '');
-      const attrs = graphic.attributes;
+      var geom = graphic.geometry;
+      var latVal = (typeof geom.latitude === 'number' ? geom.latitude : geom.y);
+      var lonVal = (typeof geom.longitude === 'number' ? geom.longitude : geom.x);
+      var lat = (latVal != null ? latVal.toFixed(6) : '');
+      var lon = (lonVal != null ? lonVal.toFixed(6) : '');
+      var attrs = graphic.attributes;
 
       switch (event.action.id) {
         case "open-waze":
@@ -762,45 +743,59 @@
     });
 
     function openNavigation(app, lat, lon) {
-      const url = app === "waze"
+      var url = app === "waze"
         ? "https://waze.com/ul?ll=" + lat + "," + lon + "&navigate=yes"
         : "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lon;
       window.open(url, "_blank");
     }
 
     function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).catch(function(err) {
-        console.error("Errore nella copia:", err);
-        var ta = document.createElement("textarea");
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-      });
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(function(err) {
+          console.error("Errore nella copia:", err);
+          fallbackCopy(text);
+        });
+      } else {
+        fallbackCopy(text);
+      }
+    }
+
+    function fallbackCopy(text) {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
     }
 
     function copyGeoJSON(attributes, lat, lon) {
-      const feature = {
+      var feature = {
         type:"Feature",
         geometry:{
           type:"Point",
           coordinates:[ parseFloat(lon), parseFloat(lat) ]
         },
-        properties:{ ...attributes }
+        properties:{}
       };
+      for (var k in (attributes || {})) {
+        if (!attributes.hasOwnProperty(k)) continue;
+        feature.properties[k] = attributes[k];
+      }
       copyToClipboard(JSON.stringify(feature, null, 2));
       showToast("GeoJSON copiato negli appunti!");
     }
 
-    function fitToGraphics(graphics, padding=40) {
+    function fitToGraphics(graphics, padding) {
+      if (padding === undefined) padding = 40;
       if (!graphics || !graphics.length) return;
-      let xmin=Infinity, ymin=Infinity, xmax=-Infinity, ymax=-Infinity;
-      for (const g of graphics) {
-        const geom = g.geometry;
+      var xmin=Infinity, ymin=Infinity, xmax=-Infinity, ymax=-Infinity;
+      for (var i=0; i<graphics.length; i++) {
+        var g = graphics[i];
+        var geom = g.geometry;
         if (!geom) continue;
-        const x = (geom.longitude != null ? geom.longitude : geom.x);
-        const y = (geom.latitude != null ? geom.latitude : geom.y);
+        var x = (geom.longitude != null ? geom.longitude : geom.x);
+        var y = (geom.latitude != null ? geom.latitude : geom.y);
         if (typeof x !== "number" || typeof y !== "number") continue;
         if (x < xmin) xmin = x;
         if (y < ymin) ymin = y;
@@ -808,36 +803,26 @@
         if (y > ymax) ymax = y;
       }
       if (!isFinite(xmin) || !isFinite(ymin) || !isFinite(xmax) || !isFinite(ymax)) return;
-      const ext = new Extent({
-        xmin, ymin, xmax, ymax,
+      var ext = new Extent({
+        xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax,
         spatialReference:{ wkid:4326 }
       });
-      view.goTo({ target: ext, padding }).catch(()=>{});
+      view.goTo({ target: ext, padding: padding }).catch(function(){});
     }
 
-    function buildSpatialGrid(points, gridSize=0.5) {
+    function buildSpatialGrid(points, gridSize) {
+      if (gridSize === undefined) gridSize = 0.5;
       spatialGrid = {};
-      for (const p of points) {
-        const lon = p.geometry.longitude;
-        const lat = p.geometry.latitude;
-        const gx = Math.floor(lon / gridSize);
-        const gy = Math.floor(lat / gridSize);
-        const key = gx + "," + gy;
+      for (var i=0; i<points.length; i++) {
+        var p = points[i];
+        var lon = p.geometry.longitude;
+        var lat = p.geometry.latitude;
+        var gx = Math.floor(lon / gridSize);
+        var gy = Math.floor(lat / gridSize);
+        var key = gx + "," + gy;
         if (!spatialGrid[key]) spatialGrid[key] = [];
         spatialGrid[key].push(p);
       }
-    }
-
-    function haversineMeters(a,b) {
-      const R = 6371000;
-      const toRad = function(d){ return d*Math.PI/180; };
-      const dLat = toRad(b.latitude - a.latitude);
-      const dLon = toRad(b.longitude - a.longitude);
-      const lat1 = toRad(a.latitude);
-      const lat2 = toRad(b.latitude);
-      const s = Math.sin(dLat/2)*Math.sin(dLat/2) +
-                Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)*Math.sin(dLon/2);
-      return Math.round(2*R*Math.asin(Math.sqrt(s)));
     }
 
     function findNearest(pt) {
@@ -848,24 +833,25 @@
         buildSpatialGrid(allPoints);
       }
 
-      const active = allPoints.filter(isCourtVisibleByFilter);
+      var active = allPoints.filter(isCourtVisibleByFilter);
       if (!active.length) {
         nearest = [];
         renderInfo();
         return;
       }
 
-      const gridSize = 0.5;
-      const gx = Math.floor(pt.longitude / gridSize);
-      const gy = Math.floor(pt.latitude / gridSize);
-      let candidates = [];
+      var gridSize = 0.5;
+      var gx = Math.floor(pt.longitude / gridSize);
+      var gy = Math.floor(pt.latitude / gridSize);
+      var candidates = [];
 
-      for (let x = gx-2; x <= gx+2; x++) {
-        for (let y = gy-2; y <= gy+2; y++) {
-          const key = x + "," + y;
-          const cell = spatialGrid[key];
+      for (var x = gx-2; x <= gx+2; x++) {
+        for (var y = gy-2; y <= gy+2; y++) {
+          var key = x + "," + y;
+          var cell = spatialGrid[key];
           if (!cell) continue;
-          for (const g of cell) {
+          for (var i=0; i<cell.length; i++) {
+            var g = cell[i];
             if (active.indexOf(g) !== -1) {
               candidates.push({
                 feature: g,
@@ -890,8 +876,9 @@
         .sort(function(a,b){ return a.distance - b.distance; })
         .slice(0, 5);
 
-      for (const item of nearest) {
-        const line = new Polyline({
+      for (var j=0; j<nearest.length; j++) {
+        var item = nearest[j];
+        var line = new Polyline({
           paths: [
             [pt.longitude, pt.latitude],
             [item.feature.geometry.longitude, item.feature.geometry.latitude]
@@ -922,7 +909,7 @@
     // misura anche da click/tap
     view.on("click", function(event) {
       if (!event.mapPoint) return;
-      let pt = event.mapPoint;
+      var pt = event.mapPoint;
       if (pt.spatialReference && pt.spatialReference.wkid !== 4326) {
         pt = webMercatorUtils.webMercatorToGeographic(pt);
       }
@@ -931,11 +918,11 @@
 
     // pan/zoom + popup su uno dei 5 record
     function focusNearestIndex(idx) {
-      const item = nearest[idx];
+      var item = nearest[idx];
       if (!item || !item.feature || !item.feature.geometry) return;
-      const g = item.feature;
-      const geom = g.geometry;
-      view.goTo({ target: geom, zoom: 17 }).catch(()=>{});
+      var g = item.feature;
+      var geom = g.geometry;
+      view.goTo({ target: geom, zoom: 17 }).catch(function(){});
       view.openPopup({
         features:[g],
         location: geom
@@ -943,10 +930,10 @@
     }
 
     function attachNearestEvents() {
-      const rows = infoContent.querySelectorAll(".nearest-item");
+      var rows = infoContent.querySelectorAll(".nearest-item");
       for (var i=0; i<rows.length; i++) {
         rows[i].addEventListener("click", function() {
-          const idx = Number(this.getAttribute("data-idx"));
+          var idx = Number(this.getAttribute("data-idx"));
           if (!isNaN(idx)) {
             focusNearestIndex(idx);
           }
@@ -955,20 +942,21 @@
     }
 
     function renderInfo() {
-      let html = "<h4 style='margin:4px 0 6px; text-align:center;'>Campi più vicini <small>(entro 5 km)</small>:</h4>";
+      var html = "<h4 style='margin:4px 0 6px; text-align:center;'>Campi più vicini <small>(entro 5 km)</small>:</h4>";
 
       if (!nearest.length) {
         html += "<p style='margin:0'>Nessun campo trovato nella distanza impostata.</p>";
       } else {
         html += "<div class='nearest-list'>";
-        nearest.forEach(function(o, idx) {
-          const a = o.feature.attributes || {};
-          const name = a.name || ("Campo #" + (a.OBJECTID != null ? a.OBJECTID : "sconosciuto"));
-          const sportValue = (a.sport ? String(a.sport) : "").toLowerCase();
-          const sportLabel = sportValue ? (" (" + sportValue + ")") : "";
-          const distLabel = o.distance.toLocaleString('it-IT') + " m";
+        for (var i=0; i<nearest.length; i++) {
+          var o = nearest[i];
+          var a = o.feature.attributes || {};
+          var name = a.name || ("Campo #" + (a.OBJECTID != null ? a.OBJECTID : "sconosciuto"));
+          var sportValue = (a.sport ? String(a.sport) : "").toLowerCase();
+          var sportLabel = sportValue ? (" (" + sportValue + ")") : "";
+          var distLabel = o.distance.toLocaleString('it-IT') + " m";
 
-          let dotColor = "#999999";
+          var dotColor = "#999999";
           if (sportValue === "padel") {
             dotColor = "#ff0000";
           } else if (sportValue === "tennis") {
@@ -976,14 +964,14 @@
           }
 
           html +=
-            '<div class="nearest-item" data-idx="' + idx + '">' +
+            '<div class="nearest-item" data-idx="' + i + '">' +
               '<span class="nearest-dot" style="background-color:' + dotColor + ';"></span>' +
               '<div class="nearest-text">' +
                 '<div class="nearest-name"><strong>' + name + '</strong>' + sportLabel + '</div>' +
                 '<div class="nearest-distance">' + distLabel + '</div>' +
               '</div>' +
             '</div>';
-        });
+        }
         html += "</div>";
       }
 
@@ -999,11 +987,11 @@
       }
       navigator.geolocation.getCurrentPosition(
         function(p) {
-          const pt = new Point({
+          var pt = new Point({
             longitude: p.coords.longitude,
             latitude: p.coords.latitude
           });
-          view.goTo({ target: pt, zoom: 14 }).catch(()=>{});
+          view.goTo({ target: pt, zoom: 14 }).catch(function(){});
           locLayer.removeAll();
           locLayer.add(new Graphic({ geometry: pt, symbol: symLocation }));
           showToast("Posizione impostata");
@@ -1014,230 +1002,6 @@
         },
         { enableHighAccuracy:true, maximumAge:30000, timeout:10000 }
       );
-    });
-
-    /* ====== WIDGET SELEZIONE ====== */
-    const selContainer = document.createElement("div");
-    selContainer.className = "select-widget";
-    selContainer.innerHTML = `
-      <h4>Selezione</h4>
-      <div class="sel-row">
-        <button id="btnSelectRect">Rettangolo</button>
-        <button id="btnClearSel" class="btn-ghost">Pulisci</button>
-      </div>
-      <div class="sel-row" style="margin-top:4px;">
-        <button id="btnCopySel" class="btn-ghost">Copia GeoJSON</button>
-        <button id="btnDownloadSel">Scarica .geojson</button>
-      </div>
-      <div class="sel-counter">Selezionati: <strong id="selCount">0</strong></div>
-    `;
-
-    const selectExpand = new Expand({
-      view,
-      content: selContainer,
-      expanded:false,
-      expandIconClass:"esri-icon-cursor",
-      expandTooltip:"Selezione"
-    });
-    view.ui.add(selectExpand, { position:"top-left", index:4 });
-
-    const sketchVM = new SketchViewModel({
-      view,
-      layer: selectionDrawLayer,
-      polygonSymbol: {
-        type:"simple-fill",
-        color:[0,0,0,0.06],
-        outline:{ color:[0,0,0,0.5], width:1 }
-      }
-    });
-
-    const selCountEl    = selContainer.querySelector("#selCount");
-    const btnSelectRect = selContainer.querySelector("#btnSelectRect");
-    const btnClearSel   = selContainer.querySelector("#btnClearSel");
-    const btnCopySel    = selContainer.querySelector("#btnCopySel");
-    const btnDownloadSel= selContainer.querySelector("#btnDownloadSel");
-
-    let selectedItems = [];
-
-    const toWGS84 = function(geom) {
-      if (!geom) return geom;
-      const sr = geom.spatialReference;
-      if (sr && (sr.wkid === 4326 || sr.isWGS84)) return geom;
-      return webMercatorUtils.webMercatorToGeographic(geom);
-    };
-
-    btnSelectRect.addEventListener("click", function() {
-      selectionDrawLayer.removeAll();
-      selectionLayer.removeAll();
-      selectedItems = [];
-      updateSelCounter();
-      sketchVM.create("rectangle");
-    });
-    btnClearSel.addEventListener("click", function() {
-      selectionDrawLayer.removeAll();
-      selectionLayer.removeAll();
-      selectedItems = [];
-      updateSelCounter();
-    });
-
-    sketchVM.on("create", function(evt) {
-      if (evt.state === "complete" && evt.graphic && evt.graphic.geometry) {
-        const rectWgs = toWGS84(evt.graphic.geometry);
-        runSelection(rectWgs);
-      }
-    });
-
-    function updateSelCounter() {
-      selCountEl.textContent = String(selectedItems.length);
-    }
-
-    function visibleGraphicsLayers() {
-      const ignore = new Set([linesLayer, locLayer, selectionDrawLayer, selectionLayer]);
-      const arr = [];
-      map.layers.forEach(function(layer) {
-        if (layer.visible && layer instanceof GraphicsLayer && !ignore.has(layer)) {
-          arr.push(layer);
-        }
-      });
-      return arr;
-    }
-
-    function quickPointInExtent(pt, ext) {
-      return (
-        pt.longitude >= ext.xmin &&
-        pt.longitude <= ext.xmax &&
-        pt.latitude  >= ext.ymin &&
-        pt.latitude  <= ext.ymax
-      );
-    }
-
-    function runSelection(rectWgs) {
-      selectionLayer.removeAll();
-      selectedItems = [];
-      const layers = visibleGraphicsLayers();
-      const ext = rectWgs.extent;
-
-      layers.forEach(function(layer) {
-        layer.graphics.items.forEach(function(g) {
-          if (!g.geometry) return;
-          if (layer === tennisLayer && !g.visible) return;
-
-          const gWgs = (g.geometry.spatialReference && g.geometry.spatialReference.wkid === 4326)
-            ? g.geometry
-            : toWGS84(g.geometry);
-          const type = gWgs.type;
-
-          if (type === "point") {
-            if (!quickPointInExtent(gWgs, ext)) return;
-          } else {
-            const gExt = gWgs.extent;
-            if (gExt && !geometryEngine.intersects(ext, gExt)) return;
-          }
-
-          const hit = geometryEngine.contains(rectWgs, gWgs);
-          if (hit) {
-            selectedItems.push({
-              geometry: gWgs.clone(),
-              attributes:{ ...g.attributes },
-              layerTitle: layer.title || "layer"
-            });
-            if (type === "point") {
-              selectionLayer.add(new Graphic({ geometry:gWgs, symbol:symSelectedPoint }));
-            } else {
-              selectionLayer.add(new Graphic({ geometry:gWgs, symbol:symSelectedLine }));
-            }
-          }
-        });
-      });
-
-      updateSelCounter();
-      showToast("Selezionate " + selectedItems.length + " feature");
-      if (selectedItems.length) {
-        const geoms = selectedItems.map(function(it){ return it.geometry; });
-        const unionExt = geoms.reduce(function(acc, g) {
-          return acc ? acc.union(g.extent) : g.extent;
-        }, null);
-        if (unionExt) {
-          view.goTo({ target: unionExt.expand(1.2) }).catch(()=>{});
-        }
-      }
-    }
-
-    function selectionToGeoJSON() {
-      const fc = { type:"FeatureCollection", features:[] };
-      selectedItems.forEach(function(it) {
-        const g = it.geometry;
-        let geom = null;
-        if (g.type === "point") {
-          geom = {
-            type:"Point",
-            coordinates:[
-              (g.longitude != null ? g.longitude : g.x),
-              (g.latitude != null ? g.latitude : g.y)
-            ]
-          };
-        } else if (g.type === "polyline") {
-          if (g.paths && g.paths.length > 1) {
-            geom = {
-              type:"MultiLineString",
-              coordinates: g.paths.map(function(path){ return path.map(function(pair){ return [pair[0], pair[1]]; }); })
-            };
-          } else {
-            const firstPath = (g.paths && g.paths[0]) || [];
-            geom = {
-              type:"LineString",
-              coordinates: firstPath.map(function(pair){ return [pair[0], pair[1]]; })
-            };
-          }
-        } else if (g.type === "polygon") {
-          if (g.rings) {
-            geom = {
-              type:"Polygon",
-              coordinates: g.rings.map(function(r){ return r.map(function(pair){ return [pair[0], pair[1]]; }); })
-            };
-          }
-        }
-        if (!geom) return;
-        const props = { ...it.attributes, _layer: it.layerTitle };
-        fc.features.push({ type:"Feature", geometry:geom, properties:props });
-      });
-      return fc;
-    }
-
-    btnCopySel.addEventListener("click", function() {
-      if (!selectedItems.length) {
-        showToast("Nessuna feature selezionata");
-        return;
-      }
-      const fc = selectionToGeoJSON();
-      copyToClipboard(JSON.stringify(fc, null, 2));
-      showToast("GeoJSON copiato negli appunti");
-    });
-
-    btnDownloadSel.addEventListener("click", function() {
-      if (!selectedItems.length) {
-        showToast("Nessuna feature selezionata");
-        return;
-      }
-      const fc = selectionToGeoJSON();
-      const blob = new Blob([JSON.stringify(fc, null, 2)], { type:"application/geo+json" });
-      const url = URL.createObjectURL(blob);
-      const ts = new Date();
-      const pad = function(n){ return String(n).padStart(2,"0"); };
-      const fname = "selezione_" +
-        ts.getFullYear() +
-        pad(ts.getMonth()+1) +
-        pad(ts.getDate()) + "_" +
-        pad(ts.getHours()) +
-        pad(ts.getMinutes()) +
-        pad(ts.getSeconds()) + ".geojson";
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fname;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
     });
 
   });
